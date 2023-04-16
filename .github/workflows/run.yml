@@ -26,9 +26,14 @@ jobs:
           curl -LR -o ruleset/bl_adlite.txt "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/AdvertisingLite/AdvertisingLite_Domain.list"
           curl -LR -o ruleset/bl_privacy.txt "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Privacy/Privacy_Domain.list"
 
+      - name: Remove Comments
+        run: |
+          sed '/^#/d' ruleset/bl_adlite.txt > ruleset/bl_adlite_mid1.txt
+          sed '/^#/d' ruleset/bl_privacy.txt > ruleset/bl_privacy_mid1.txt
+
       - name: Generate Files
         run: |
-          cat ruleset/bl_adlite.txt ruleset/lo_reject.txt ruleset/bl_privacy.txt | sort | uniq > ruleset/AD_Domain.txt
+          cat ruleset/bl_adlite_mid1.txt ruleset/lo_reject.txt ruleset/bl_privacy_mid1.txt | sort | uniq > ruleset/AD_Domain.txt
 
       - name: Remove Useless Files
         run: |
