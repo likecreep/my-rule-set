@@ -28,7 +28,7 @@ jobs:
 
       - name: Generate Files
         run: |
-          cat ruleset/bl_adlite_end.txt ruleset/lo_reject.txt ruleset/bl_privacy_end.txt | sort | uniq > ruleset/AD_Domain.txt
+          cat ruleset/bl_adlite.txt ruleset/lo_reject.txt ruleset/bl_privacy.txt | sort | uniq > ruleset/AD_Domain.txt
 
       - name: Remove Useless Files
         run: |
