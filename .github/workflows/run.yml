@@ -1,0 +1,55 @@
+name: Generate routing rules for Surge
+
+on:
+  push:
+    branches: [master]
+
+  workflow_dispatch:
+
+  schedule:
+    - cron: "0 2 * * *"
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the default branch
+        uses: actions/checkout@v3
+
+      - name: Create dist folder
+        run: mkdir -p ruleset
+
+      - name: Obtain Files
+        run: |
+          curl -LR -o ruleset/lo_reject.txt "https://raw.githubusercontent.com/Loyalsoldier/surge-rules/release/reject.txt"
+          curl -LR -o ruleset/bl_adlite.txt "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/AdvertisingLite/AdvertisingLite_Domain.list"
+
+      - name: Modify Files
+        run: |
+          sed '/^#/d' ruleset/bl_adlite.txt > ruleset/bl_adlite_mid1.txt
+          sed 's/^/./' ruleset/bl_adlite_mid1.txt > ruleset/bl_adlite_mid2.txt
+          sed 's/^\.\././' ruleset/bl_adlite_mid2.txt > ruleset/bl_adlite_end.txt
+
+      - name: Generate Files
+        run: |
+          cat ruleset/bl_adlite_end.txt ruleset/lo_reject.txt | sort -u > ruleset/AD_Domain.txt
+
+      - name: Push artifacts to release branch
+        run: |
+          git config --local user.email "28685148+likecreep@users.noreply.github.com"
+          git config --local user.name "github-action[bot]"
+          git fetch
+          git checkout release
+          git checkout --orphan release-orphan
+          git add -A
+          git commit -am "Updated at $(date)"
+          git branch -D release
+          git branch -m release
+
+      - name: GitHub Push
+        uses: ad-m/github-push-action@v0.6.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: release
+          force: true
