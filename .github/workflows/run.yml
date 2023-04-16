@@ -40,7 +40,7 @@ jobs:
           git config --local user.email "28685148+likecreep@users.noreply.github.com"
           git config --local user.name "github-action[bot]"
           git fetch
-          git checkout release
+          git checkout -b release
           git checkout --orphan release-orphan
           git add -A
           git commit -am "Updated at $(date)"
