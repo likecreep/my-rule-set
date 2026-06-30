@@ -2,8 +2,8 @@ name: tft
 description: tft
 icon: https://raw.githubusercontent.com/likecreep/my-rule-set/master/tft.png
 scriptings:
-  - name: tft_mock
-    type: http_request
-    match: '^https?://tft2\.aircoder\.dpdns\.org'
-    script_url: 'https://raw.githubusercontent.com/likecreep/my-rule-set/master/tft.js'
-    body_required: false
+  - http_request:
+      name: tft_mock
+      match: '^https?://tft2\.aircoder\.dpdns\.org'
+      script_url: 'https://raw.githubusercontent.com/likecreep/my-rule-set/master/tft.js'
+      body_required: false
