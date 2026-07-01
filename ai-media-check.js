@@ -209,7 +209,7 @@ export default async function(ctx) {
   }
 
   // ==== Claude 重构版 ====
-  async function checkClaude() {
+    async function checkClaude() {
     let region = null;
     const trace = await ctx.http.get('https://claude.ai/cdn-cgi/trace', { timeout: 3000 }).catch(() => null);
     if (trace && trace.status === 200) {
@@ -218,7 +218,7 @@ export default async function(ctx) {
       if (match) region = match[1].toUpperCase();
     }
 
-    // 禁用重定向以拦截屏蔽判定
+    // 禁用重定向，直接探测首包状态
     const res = await ctx.http.get('https://claude.ai/', { 
         timeout: 4000, 
         headers: commonHeaders,
@@ -227,27 +227,26 @@ export default async function(ctx) {
 
     if (!res) return { code: 'ERR', region: region };
 
-    // 检测 30x 跳转 Location Header 是否指向未提供服务页面
+    // 1. 判断是否被 Claude 边缘节点直接 30x 重定向到无服务区域页面
     if (res.status >= 300 && res.status < 400) {
         const loc = res.headers['Location'] || res.headers['location'] || '';
         if (loc.includes('app-unavailable-in-region')) {
-            return { code: 'ERR', region: region };
-        } else {
-            return { code: 'OK', region: region };
+            return { code: 'ERR', region: region }; // 明确未解锁
         }
-    }
-
-    // 检测 200 页面内是否包含屏蔽字眼
-    if (res.status === 200) {
+    } 
+    // 2. 判断 200 OK 页面中是否渲染了无服务特征 (备用后备)
+    else if (res.status === 200) {
         const body = await getBody(res);
         if (body.includes('app-unavailable-in-region')) {
             return { code: 'ERR', region: region };
         }
-        return { code: 'OK', region: region };
     }
 
-    return { code: 'ERR', region: region };
+    // 3. 核心修复点：除了明确的黑名单路由，其他 HTTP 状态（如 Cloudflare 触发的 403 盾，或 302 到 /login）
+    // 均代表 IP 的 Geo-IP 已经处于解锁区域内。
+    return { code: 'OK', region: region };
   }
+
 
   // ==== Gemini 重构版 ====
   async function checkGemini() {
