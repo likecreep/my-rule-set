@@ -2,7 +2,7 @@
  * Egern小组件: 网络服务解锁监测 (穿透 WAF 黑名单校验版)
  * 大组件: 流媒体 + AI 全部显示
  * 中/小组件: 只显示流媒体
- * 更新：已集成 Stream-All 细化解锁判定逻辑 (YouTube 精确区域/Netflix 剧集分类/Disney+ GraphQL 验证)
+ * 更新: 纯接口/Header校验优化版 (Netflix 完全使用 HEAD 请求，Disney+ 使用 GraphQL)
  */
 export default async function(ctx) {
   const MODE = 'auto'; // auto / large / compact
@@ -62,7 +62,7 @@ export default async function(ctx) {
       return { code: 'ERR', region: null };
     }
     
-    let region = 'US'; // 默认回退
+    let region = 'US';
     const match = body.match(/"countryCode":"(.*?)"/) || body.match(/GL":\s*"([A-Z]{2})"/i);
     
     if (match && match[1]) {
@@ -76,7 +76,8 @@ export default async function(ctx) {
 
   async function checkNetflix() {
     const innerCheck = async (filmId) => {
-      const res = await ctx.http.get('https://www.netflix.com/title/' + filmId, {
+      // 采用 HEAD 请求，完全摒弃 Body 下载，仅通过边缘节点注入的 Header 判定
+      const res = await ctx.http.head('https://www.netflix.com/title/' + filmId, {
         timeout: 4000, headers: commonHeaders, followRedirect: false
       }).catch(() => null);
       
@@ -85,7 +86,7 @@ export default async function(ctx) {
       if (res.status === 404) return { status: 'Not Found' };
       
       if (res.status === 200) {
-        let region = 'US';
+        let region = 'US'; // 默认回退
         const headers = res.headers || {};
         const url = headers['x-originating-url'] || headers['X-Originating-Url'];
         
@@ -95,21 +96,17 @@ export default async function(ctx) {
             let reg = parts[3].split('-')[0].toUpperCase();
             if (reg !== 'TITLE') region = reg;
           }
-        } else {
-          const body = await getBody(res);
-          const match = body.match(/"requestCountry":"([A-Z]{2})"/i) || body.match(/"geolocation":\{"country":"([A-Z]{2})"\}/i);
-          if (match) region = match[1].toUpperCase();
         }
         return { status: 'OK', region: region };
       }
       return { status: 'Error' };
     };
 
-    // 81280792: 绝命毒师 (非自制剧) 测试完整解锁
+    // 81280792: 绝命毒师 (非自制剧)
     const check1 = await innerCheck(81280792);
     if (check1.status === 'OK') return { code: 'OK', region: check1.region, suffix: '(全)' };
     
-    // 若非自制剧未找到，测试 80018499: 怪奇物语 (自制剧) 测试仅自制剧解锁
+    // 80018499: 怪奇物语 (自制剧)
     if (check1.status === 'Not Found') {
       const check2 = await innerCheck(80018499);
       if (check2.status === 'OK') return { code: 'OK', region: check2.region, suffix: '(自)' };
@@ -120,21 +117,6 @@ export default async function(ctx) {
 
   async function checkDisney() {
     try {
-      const homeRes = await ctx.http.get('https://www.disneyplus.com/', {
-        timeout: 5000, headers: commonHeaders
-      }).catch(() => null);
-      
-      if (!homeRes || homeRes.status !== 200) return { code: 'ERR', region: null };
-      
-      const homeBody = await getBody(homeRes);
-      if (homeBody.includes('Sorry, Disney+ is not available in your region.')) {
-        return { code: 'ERR', region: null };
-      }
-      
-      let region = '';
-      const match = homeBody.match(/Region:\s*([A-Za-z]{2})[\s\S]*?CNBL:\s*([12])/i);
-      if (match) region = match[1].toUpperCase();
-
       const gqlOpts = {
         timeout: 5000,
         headers: {
@@ -159,25 +141,28 @@ export default async function(ctx) {
       };
       
       const gqlRes = await ctx.http.post('https://disney.api.edge.bamgrid.com/graph/v1/device/graphql', gqlOpts).catch(() => null);
-      if (gqlRes && gqlRes.status === 200) {
-        const gqlBody = await getBody(gqlRes);
-        const data = JSON.parse(gqlBody);
+      if (!gqlRes || gqlRes.status !== 200) {
+        return { code: 'ERR', region: null };
+      }
+
+      const gqlBody = await getBody(gqlRes);
+      const data = JSON.parse(gqlBody);
+      
+      if (!data?.errors && data?.extensions?.sdk) {
+        const sdk = data.extensions.sdk;
+        const inSupportedLocation = sdk.session?.inSupportedLocation;
+        const countryCode = sdk.session?.location?.countryCode;
         
-        if (!data?.errors && data?.extensions?.sdk) {
-          const sdk = data.extensions.sdk;
-          const inSupportedLocation = sdk.session?.inSupportedLocation;
-          const countryCode = sdk.session?.location?.countryCode;
-          
-          if (countryCode) region = countryCode.toUpperCase();
-          
-          if (inSupportedLocation === false || String(inSupportedLocation) === 'false') {
-            return { code: 'OK', region: region, suffix: '(即将)' };
-          } else {
-            return { code: 'OK', region: region };
-          }
+        let region = null;
+        if (countryCode) region = countryCode.toUpperCase();
+        
+        if (inSupportedLocation === false || String(inSupportedLocation) === 'false') {
+          return { code: 'OK', region: region, suffix: '(即将)' };
+        } else if (region) {
+          return { code: 'OK', region: region };
         }
       }
-      return region ? { code: 'OK', region: region } : { code: 'ERR', region: null };
+      return { code: 'ERR', region: null };
     } catch (e) {
       return { code: 'ERR', region: null };
     }
