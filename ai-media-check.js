@@ -2,7 +2,7 @@
  * Egern小组件: 网络服务解锁监测 (穿透 WAF 黑名单校验版)
  * 大组件: 流媒体 + AI 全部显示
  * 中/小组件: 只显示流媒体
- * 更新: 纯接口/Header校验优化版 (Netflix 完全使用 HEAD 请求，Disney+ 使用 GraphQL)
+ * 更新: 纯接口/Header校验优化版 (摒弃耗时耗流的网页 DOM 正则解析)
  */
 export default async function(ctx) {
   const MODE = 'auto'; // auto / large / compact
@@ -76,8 +76,8 @@ export default async function(ctx) {
 
   async function checkNetflix() {
     const innerCheck = async (filmId) => {
-      // 采用 HEAD 请求，完全摒弃 Body 下载，仅通过边缘节点注入的 Header 判定
-      const res = await ctx.http.head('https://www.netflix.com/title/' + filmId, {
+      // 摒弃获取 body，完全依赖 HTTP 状态码与响应头判定解锁状态
+      const res = await ctx.http.get('https://www.netflix.com/title/' + filmId, {
         timeout: 4000, headers: commonHeaders, followRedirect: false
       }).catch(() => null);
       
@@ -86,7 +86,7 @@ export default async function(ctx) {
       if (res.status === 404) return { status: 'Not Found' };
       
       if (res.status === 200) {
-        let region = 'US'; // 默认回退
+        let region = 'US'; // Fallback
         const headers = res.headers || {};
         const url = headers['x-originating-url'] || headers['X-Originating-Url'];
         
@@ -116,6 +116,7 @@ export default async function(ctx) {
   }
 
   async function checkDisney() {
+    // 彻底摒弃主页 GET 检测，通过单次 GraphQL POST 完成鉴权和区域定位
     try {
       const gqlOpts = {
         timeout: 5000,
