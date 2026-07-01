@@ -2,6 +2,7 @@
  * Egern小组件: 网络服务解锁监测 (穿透 WAF 黑名单校验版)
  * 大组件: 流媒体 + AI 全部显示
  * 中/小组件: 只显示流媒体
+ * 更新：已集成 Stream-All 细化解锁判定逻辑 (YouTube 精确区域/Netflix 剧集分类/Disney+ GraphQL 验证)
  */
 export default async function(ctx) {
   const MODE = 'auto'; // auto / large / compact
@@ -18,7 +19,6 @@ export default async function(ctx) {
     fail:     { light: '#D64545', dark: '#FF626A' }
   };
 
-  // 伪装成现代 macOS Chrome 以减少底层 WAF 阻断
   const BASE_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
   const commonHeaders = { 'User-Agent': BASE_UA };
 
@@ -55,42 +55,132 @@ export default async function(ctx) {
     }).catch(() => null);
     
     if (!res || res.status !== 200) return { code: 'ERR', region: null };
+    
     const body = await getBody(res);
-    // 增加一种正则匹配模式，防止 YT DOM 结构变化导致提取 null
-    let match = body.match(/"countryCode":"([A-Z]{2})"/i);
-    if (!match) match = body.match(/GL":\s*"([A-Z]{2})"/i);
-    return { code: 'OK', region: match ? match[1].toUpperCase() : null };
+    
+    if (body.includes('Premium is not available in your country')) {
+      return { code: 'ERR', region: null };
+    }
+    
+    let region = 'US'; // 默认回退
+    const match = body.match(/"countryCode":"(.*?)"/) || body.match(/GL":\s*"([A-Z]{2})"/i);
+    
+    if (match && match[1]) {
+      region = match[1].toUpperCase();
+    } else if (body.includes('www.google.cn')) {
+      region = 'CN';
+    }
+    
+    return { code: 'OK', region: region };
   }
 
   async function checkNetflix() {
-    const res = await ctx.http.get('https://www.netflix.com/title/80018499', {
-      timeout: 4000, headers: commonHeaders, followRedirect: false
-    }).catch(() => null);
+    const innerCheck = async (filmId) => {
+      const res = await ctx.http.get('https://www.netflix.com/title/' + filmId, {
+        timeout: 4000, headers: commonHeaders, followRedirect: false
+      }).catch(() => null);
+      
+      if (!res) return { status: 'Error' };
+      if (res.status === 403) return { status: 'Not Available' };
+      if (res.status === 404) return { status: 'Not Found' };
+      
+      if (res.status === 200) {
+        let region = 'US';
+        const headers = res.headers || {};
+        const url = headers['x-originating-url'] || headers['X-Originating-Url'];
+        
+        if (url) {
+          const parts = url.split('/');
+          if (parts.length > 3) {
+            let reg = parts[3].split('-')[0].toUpperCase();
+            if (reg !== 'TITLE') region = reg;
+          }
+        } else {
+          const body = await getBody(res);
+          const match = body.match(/"requestCountry":"([A-Z]{2})"/i) || body.match(/"geolocation":\{"country":"([A-Z]{2})"\}/i);
+          if (match) region = match[1].toUpperCase();
+        }
+        return { status: 'OK', region: region };
+      }
+      return { status: 'Error' };
+    };
 
-    if (!res || res.status !== 200) return { code: 'ERR', region: null };
-
-    const body = await getBody(res);
-    const match = body.match(/"requestCountry":"([A-Z]{2})"/i) || body.match(/"geolocation":\{"country":"([A-Z]{2})"\}/i);
-    return { code: 'OK', region: match ? match[1].toUpperCase() : null };
+    // 81280792: 绝命毒师 (非自制剧) 测试完整解锁
+    const check1 = await innerCheck(81280792);
+    if (check1.status === 'OK') return { code: 'OK', region: check1.region, suffix: '(全)' };
+    
+    // 若非自制剧未找到，测试 80018499: 怪奇物语 (自制剧) 测试仅自制剧解锁
+    if (check1.status === 'Not Found') {
+      const check2 = await innerCheck(80018499);
+      if (check2.status === 'OK') return { code: 'OK', region: check2.region, suffix: '(自)' };
+    }
+    
+    return { code: 'ERR', region: null };
   }
 
   async function checkDisney() {
-    const res = await ctx.http.get('https://www.disneyplus.com', {
-      timeout: 4000, headers: commonHeaders, followRedirect: false
-    }).catch(() => null);
+    try {
+      const homeRes = await ctx.http.get('https://www.disneyplus.com/', {
+        timeout: 5000, headers: commonHeaders
+      }).catch(() => null);
+      
+      if (!homeRes || homeRes.status !== 200) return { code: 'ERR', region: null };
+      
+      const homeBody = await getBody(homeRes);
+      if (homeBody.includes('Sorry, Disney+ is not available in your region.')) {
+        return { code: 'ERR', region: null };
+      }
+      
+      let region = '';
+      const match = homeBody.match(/Region:\s*([A-Za-z]{2})[\s\S]*?CNBL:\s*([12])/i);
+      if (match) region = match[1].toUpperCase();
 
-    if (!res || res.status === 403) return { code: 'ERR', region: null };
-
-    let region = null;
-    if (res.headers) {
-      for (const [key, value] of Object.entries(res.headers)) {
-        if (key.toLowerCase() === 'x-dss-edge-country') {
-          region = value.toUpperCase();
-          break;
+      const gqlOpts = {
+        timeout: 5000,
+        headers: {
+          'Accept-Language': 'en',
+          'Authorization': 'ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84',
+          'Content-Type': 'application/json',
+          'User-Agent': BASE_UA
+        },
+        body: JSON.stringify({
+          query: 'mutation registerDevice($input: RegisterDeviceInput!) { registerDevice(registerDevice: $input) { grant { grantType assertion } } }',
+          variables: {
+            input: {
+              applicationRuntime: 'chrome',
+              attributes: {
+                browserName: 'chrome', browserVersion: '94.0.4606', manufacturer: 'apple',
+                model: null, operatingSystem: 'macintosh', operatingSystemVersion: '10.15.7', osDeviceIds: []
+              },
+              deviceFamily: 'browser', deviceLanguage: 'en', deviceProfile: 'macosx'
+            }
+          }
+        })
+      };
+      
+      const gqlRes = await ctx.http.post('https://disney.api.edge.bamgrid.com/graph/v1/device/graphql', gqlOpts).catch(() => null);
+      if (gqlRes && gqlRes.status === 200) {
+        const gqlBody = await getBody(gqlRes);
+        const data = JSON.parse(gqlBody);
+        
+        if (!data?.errors && data?.extensions?.sdk) {
+          const sdk = data.extensions.sdk;
+          const inSupportedLocation = sdk.session?.inSupportedLocation;
+          const countryCode = sdk.session?.location?.countryCode;
+          
+          if (countryCode) region = countryCode.toUpperCase();
+          
+          if (inSupportedLocation === false || String(inSupportedLocation) === 'false') {
+            return { code: 'OK', region: region, suffix: '(即将)' };
+          } else {
+            return { code: 'OK', region: region };
+          }
         }
       }
+      return region ? { code: 'OK', region: region } : { code: 'ERR', region: null };
+    } catch (e) {
+      return { code: 'ERR', region: null };
     }
-    return { code: 'OK', region };
   }
 
   async function checkChatGPT() {
@@ -102,11 +192,9 @@ export default async function(ctx) {
       if (match) region = match[1].toUpperCase();
     }
 
-    // 放弃直接请求网页端 API 以避开 WAF，改用物理落地国家比对 OpenAI 黑名单
     const blockedRegions = ['CN', 'HK', 'MO', 'RU', 'IR', 'KP', 'SY', 'CU'];
     const webOk = region && !blockedRegions.includes(region);
 
-    // App API 通常允许部分黑名单地区（如 HK）直连，作为特判
     const appRes = await ctx.http.get('https://ios.chat.openai.com/public-api/mobile/server_status/v1', {
       timeout: 4000,
       headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1' }
@@ -128,7 +216,6 @@ export default async function(ctx) {
       if (match) region = match[1].toUpperCase();
     }
 
-    // 同样放弃请求 login 或 api 接口硬刚 CF 验证码，改用物理落地黑名单校验
     const blockedRegions = ['CN', 'HK', 'MO', 'RU', 'BY', 'IR', 'KP', 'SY', 'CU'];
     const claudeOk = region && !blockedRegions.includes(region);
 
@@ -154,7 +241,6 @@ export default async function(ctx) {
        }
     }
 
-    // region 为 null，完全交由外层的 youtube/proxy 区域解析链处理
     if (webOk) return { code: 'OK', region: null }; 
     if (!webOk && apiOk) return { code: 'OK', region: null, suffix: '(API)' };
     
@@ -180,7 +266,6 @@ export default async function(ctx) {
     let region = '--';
     
     if (available) {
-      // 深度降级链：自身区域 -> 传入的 fallback -> '--'
       let base = result.region || fallbackRegion || '--';
       let suffix = result.suffix || '';
       
@@ -200,10 +285,8 @@ export default async function(ctx) {
   ];
 
   const ai = isLarge ? [
-    // GPT 和 Claude 不接受回退区域，强制依赖自身 Trace 确保不出错
     { name: 'ChatGPT', info: resultInfo(chatgpt, null) }, 
     { name: 'Claude', info: resultInfo(claude, null) },
-    // 强制 Gemini 挂靠 YouTube 区域，若 YouTube 测出 null，则再次降级使用底层节点 proxy 区域
     { name: 'Gemini', info: resultInfo(gemini, youtube.region || proxy.region) }
   ] : [];
 
