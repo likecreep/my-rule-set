@@ -50,29 +50,38 @@ export default async function(ctx) {
   }
 
   async function checkYouTube() {
+    // 强制使用英文 Header，避免小语种页面布局变动影响检测
+    const headers = { ...commonHeaders, 'Accept-Language': 'en-US,en;q=0.9' };
     const res = await ctx.http.get('https://www.youtube.com/premium', {
-      timeout: 4000, headers: commonHeaders
+      timeout: 4000, headers
     }).catch(() => null);
     
     if (!res || res.status !== 200) return { code: 'ERR', region: null };
-    
     const body = await getBody(res);
     
+    // 1. 严格拦截送中节点 (CN)
+    if (body.includes('www.google.cn')) {
+      return { code: 'ERR', region: 'CN' }; 
+    }
+    
+    // 2. 检测黑名单限制特征
     if (body.includes('Premium is not available in your country')) {
       return { code: 'ERR', region: null };
     }
     
-    let region = 'US';
-    const match = body.match(/"countryCode":"(.*?)"/) || body.match(/GL":\s*"([A-Z]{2})"/i);
-    
+    // 3. 提取地区代码 (增加 INNERTUBE_CONTEXT_GL 目标)
+    let region = 'UNKNOWN';
+    const match = body.match(/"countryCode":"(.*?)"/) || 
+                  body.match(/GL":\s*"([A-Z]{2})"/i) || 
+                  body.match(/"INNERTUBE_CONTEXT_GL"\s*:\s*"([A-Z]{2})"/i);
+                  
     if (match && match[1]) {
       region = match[1].toUpperCase();
-    } else if (body.includes('www.google.cn')) {
-      region = 'CN';
     }
     
     return { code: 'OK', region: region };
   }
+
 
   async function checkNetflix() {
     const innerCheck = async (filmId) => {
