@@ -73,10 +73,10 @@ export default async function(ctx) {
     let region = 'UNKNOWN';
     
     // 按优先级依次尝试匹配 INNERTUBE_CONTEXT_GL, "GL", "countryCode" 和无引号 GL
-    const match = body.match(/"INNERTUBE_CONTEXT_GL"\s*:\s*"([^"]+)"/i) || 
-                  body.match(/"GL"\s*:\s*"([^"]+)"/i) || 
-                  body.match(/"countryCode"\s*:\s*"([^"]+)"/i) ||
-                  body.match(/GL"\s*:\s*"([^"]+)"/i);
+    const match = body.match(/"?INNERTUBE_CONTEXT_GL"?\s*:\s*"([^"]+)"/i) || 
+              body.match(/"?countryCode"?\s*:\s*"([^"]+)"/i) ||
+              body.match(/"?GL"?\s*:\s*"([^"]+)"/i);
+
                   
     if (match && match[1]) {
       region = match[1].toUpperCase();
