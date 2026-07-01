@@ -76,7 +76,6 @@ export default async function(ctx) {
 
   async function checkNetflix() {
     const innerCheck = async (filmId) => {
-      // 摒弃获取 body，完全依赖 HTTP 状态码与响应头判定解锁状态
       const res = await ctx.http.get('https://www.netflix.com/title/' + filmId, {
         timeout: 4000, headers: commonHeaders, followRedirect: false
       }).catch(() => null);
@@ -102,11 +101,9 @@ export default async function(ctx) {
       return { status: 'Error' };
     };
 
-    // 81280792: 绝命毒师 (非自制剧)
     const check1 = await innerCheck(81280792);
     if (check1.status === 'OK') return { code: 'OK', region: check1.region, suffix: '(全)' };
     
-    // 80018499: 怪奇物语 (自制剧)
     if (check1.status === 'Not Found') {
       const check2 = await innerCheck(80018499);
       if (check2.status === 'OK') return { code: 'OK', region: check2.region, suffix: '(自)' };
@@ -116,7 +113,6 @@ export default async function(ctx) {
   }
 
   async function checkDisney() {
-    // 彻底摒弃主页 GET 检测，通过单次 GraphQL POST 完成鉴权和区域定位
     try {
       const gqlOpts = {
         timeout: 5000,
@@ -227,8 +223,9 @@ export default async function(ctx) {
        }
     }
 
-    if (webOk) return { code: 'OK', region: null }; 
-    if (!webOk && apiOk) return { code: 'OK', region: null, suffix: '(API)' };
+    // 重构点：直接返回状态标识，不再依赖后续 UI 解析国家代码
+    if (webOk) return { code: 'OK', region: 'OK' }; 
+    if (!webOk && apiOk) return { code: 'OK', region: 'API' };
     
     return { code: 'ERR', region: null };
   }
@@ -273,7 +270,8 @@ export default async function(ctx) {
   const ai = isLarge ? [
     { name: 'ChatGPT', info: resultInfo(chatgpt, null) }, 
     { name: 'Claude', info: resultInfo(claude, null) },
-    { name: 'Gemini', info: resultInfo(gemini, youtube.region || proxy.region) }
+    // 重构点：切断与 YouTube / 代理归属地的依赖关联
+    { name: 'Gemini', info: resultInfo(gemini, null) }
   ] : [];
 
   const allServices = [...streaming, ...ai];
