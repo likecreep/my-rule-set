@@ -2,7 +2,7 @@
  * Egern小组件: 网络服务解锁监测 (穿透 WAF 黑名单校验版)
  * 大组件: 流媒体 + AI 全部显示
  * 中/小组件: 只显示流媒体
- * 更新: 纯接口/Header校验优化版 (摒弃耗时耗流的网页 DOM 正则解析)
+ * 更新: AI 服务深度解锁检测重构版 (匹配最新限制规则)
  */
 export default async function(ctx) {
   const MODE = 'auto'; // auto / large / compact
@@ -19,7 +19,7 @@ export default async function(ctx) {
     fail:     { light: '#D64545', dark: '#FF626A' }
   };
 
-  const BASE_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
+  const BASE_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
   const commonHeaders = { 'User-Agent': BASE_UA };
 
   const family = String(ctx.widgetFamily || ctx.family || ctx.widgetSize || '').toLowerCase();
@@ -165,8 +165,10 @@ export default async function(ctx) {
     }
   }
 
+  // ==== ChatGPT 重构版 ====
   async function checkChatGPT() {
     let region = null;
+    // 获取 Cloudflare Trace 节点地，便于显示
     const trace = await ctx.http.get('https://chatgpt.com/cdn-cgi/trace', { timeout: 3000 }).catch(() => null);
     if (trace && trace.status === 200) {
       const body = await getBody(trace);
@@ -174,21 +176,39 @@ export default async function(ctx) {
       if (match) region = match[1].toUpperCase();
     }
 
-    const blockedRegions = ['CN', 'HK', 'MO', 'RU', 'IR', 'KP', 'SY', 'CU'];
-    const webOk = region && !blockedRegions.includes(region);
-
-    const appRes = await ctx.http.get('https://ios.chat.openai.com/public-api/mobile/server_status/v1', {
+    // Web 端校验
+    const resWeb = await ctx.http.get('https://api.openai.com/compliance/cookie_requirements', {
       timeout: 4000,
-      headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1' }
+      headers: { ...commonHeaders, 'authority': 'api.openai.com', 'authorization': 'Bearer null' }
     }).catch(() => null);
-    const appOk = appRes && appRes.status === 200;
 
-    if (webOk) return { code: 'OK', region: region }; 
-    if (!webOk && appOk) return { code: 'OK', region: region, suffix: '(App)' }; 
+    // App 端校验
+    const resApp = await ctx.http.get('https://ios.chat.openai.com/', {
+      timeout: 4000,
+      headers: { ...commonHeaders, 'authority': 'ios.chat.openai.com' }
+    }).catch(() => null);
+
+    let webBlocked = true;
+    let appBlocked = true;
+
+    if (resWeb) {
+      const bodyWeb = await getBody(resWeb);
+      if (!bodyWeb.toLowerCase().includes('unsupported_country')) webBlocked = false;
+    }
+
+    if (resApp) {
+      const bodyApp = await getBody(resApp);
+      if (!bodyApp.toLowerCase().includes('vpn')) appBlocked = false;
+    }
+
+    if (!webBlocked && !appBlocked) return { code: 'OK', region: region }; 
+    if (!webBlocked && appBlocked) return { code: 'OK', region: region, suffix: '(Web)' };
+    if (webBlocked && !appBlocked) return { code: 'OK', region: region, suffix: '(App)' }; 
     
     return { code: 'ERR', region: region };
   }
 
+  // ==== Claude 重构版 ====
   async function checkClaude() {
     let region = null;
     const trace = await ctx.http.get('https://claude.ai/cdn-cgi/trace', { timeout: 3000 }).catch(() => null);
@@ -198,36 +218,60 @@ export default async function(ctx) {
       if (match) region = match[1].toUpperCase();
     }
 
-    const blockedRegions = ['CN', 'HK', 'MO', 'RU', 'BY', 'IR', 'KP', 'SY', 'CU'];
-    const claudeOk = region && !blockedRegions.includes(region);
+    // 禁用重定向以拦截屏蔽判定
+    const res = await ctx.http.get('https://claude.ai/', { 
+        timeout: 4000, 
+        headers: commonHeaders,
+        followRedirect: false
+    }).catch(() => null);
 
-    if (claudeOk) return { code: 'OK', region: region };
+    if (!res) return { code: 'ERR', region: region };
+
+    // 检测 30x 跳转 Location Header 是否指向未提供服务页面
+    if (res.status >= 300 && res.status < 400) {
+        const loc = res.headers['Location'] || res.headers['location'] || '';
+        if (loc.includes('app-unavailable-in-region')) {
+            return { code: 'ERR', region: region };
+        } else {
+            return { code: 'OK', region: region };
+        }
+    }
+
+    // 检测 200 页面内是否包含屏蔽字眼
+    if (res.status === 200) {
+        const body = await getBody(res);
+        if (body.includes('app-unavailable-in-region')) {
+            return { code: 'ERR', region: region };
+        }
+        return { code: 'OK', region: region };
+    }
+
     return { code: 'ERR', region: region };
   }
 
+  // ==== Gemini 重构版 ====
   async function checkGemini() {
-    const webRes = await ctx.http.get('https://gemini.google.com/app', {
-      timeout: 4000, headers: commonHeaders, followRedirect: false
-    }).catch(() => null);
-    const webOk = webRes && webRes.status === 200;
-
-    const apiRes = await ctx.http.get('https://generativelanguage.googleapis.com/v1beta/models', {
-      timeout: 4000, headers: { ...commonHeaders, 'Accept': 'application/json' }
+    const res = await ctx.http.get('https://gemini.google.com', {
+      timeout: 5000, headers: commonHeaders, followRedirect: true
     }).catch(() => null);
     
-    let apiOk = false;
-    if (apiRes) {
-       const contentType = apiRes.headers['Content-Type'] || apiRes.headers['content-type'] || '';
-       if (apiRes.status === 401 || apiRes.status === 400 || apiRes.status === 200 || (apiRes.status === 403 && contentType.includes('application/json'))) {
-         apiOk = true;
-       }
+    if (!res) return { code: 'ERR', region: null };
+    const body = await getBody(res);
+    
+    // 判断是否包含解锁特性标识
+    const isUnlocked = body.includes('45631641,null,true');
+    if (!isUnlocked) {
+        return { code: 'ERR', region: null };
     }
 
-    // 重构点：直接返回状态标识，不再依赖后续 UI 解析国家代码
-    if (webOk) return { code: 'OK', region: 'OK' }; 
-    if (!webOk && apiOk) return { code: 'OK', region: 'API' };
+    // 正则提取当前解锁国家代码 (例如: ,2,1,200,"USA")
+    let region = null;
+    const match = body.match(/,2,1,200,"([A-Z]{2,3})"/);
+    if (match && match[1]) {
+        region = match[1];
+    }
     
-    return { code: 'ERR', region: null };
+    return { code: 'OK', region: region || 'OK' };
   }
 
   const checks = isLarge
@@ -270,7 +314,6 @@ export default async function(ctx) {
   const ai = isLarge ? [
     { name: 'ChatGPT', info: resultInfo(chatgpt, null) }, 
     { name: 'Claude', info: resultInfo(claude, null) },
-    // 重构点：切断与 YouTube / 代理归属地的依赖关联
     { name: 'Gemini', info: resultInfo(gemini, null) }
   ] : [];
 
