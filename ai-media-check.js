@@ -42,8 +42,7 @@ export default async function(ctx) {
       const res = await ctx.http.get('http://ip-api.com/json/?lang=zh-CN', { timeout: 4000 });
       if (!res || res.status !== 200) return { code: 'ERR', region: null };
       const data = JSON.parse(await getBody(res));
-      const cc = data.countryCode || null;
-      return { code: cc ? 'OK' : 'ERR', region: cc };
+      return { code: data.countryCode ? 'OK' : 'ERR', region: data.countryCode || null };
     } catch {
       return { code: 'ERR', region: null };
     }
@@ -61,7 +60,6 @@ export default async function(ctx) {
   }
 
   async function checkNetflix() {
-    // 80018499 用于判定是否全解锁
     const res = await ctx.http.get('https://www.netflix.com/title/80018499', {
       timeout: 4000, headers: commonHeaders, followRedirect: false
     }).catch(() => null);
@@ -101,7 +99,6 @@ export default async function(ctx) {
       if (match) region = match[1].toUpperCase();
     }
 
-    // 网页端检测 (通过请求接口判断，401 或 JSON 意味着穿透了 CF WAF)
     const webRes = await ctx.http.get('https://chatgpt.com/backend-api/models', {
       timeout: 4000,
       headers: { ...commonHeaders, 'Accept': 'application/json' }
@@ -115,7 +112,6 @@ export default async function(ctx) {
       }
     }
 
-    // App端检测
     const appRes = await ctx.http.get('https://ios.chat.openai.com/public-api/mobile/server_status/v1', {
       timeout: 4000,
       headers: { 
@@ -125,15 +121,17 @@ export default async function(ctx) {
     }).catch(() => null);
     const appOk = appRes && appRes.status === 200;
 
-    // 综合判定逻辑
-    if (webOk) return { code: 'OK', region: region }; // 解锁Web，直接显示地区
-    if (!webOk && appOk) return { code: 'OK', region: region ? `${region}(App)` : '(App)' }; // 仅解锁App
+    // 网页版解锁必然包含APP解锁，直接返回地区
+    if (webOk) return { code: 'OK', region: region }; 
+    // 仅解锁APP时，挂载 (App) 后缀
+    if (!webOk && appOk) return { code: 'OK', region: region, suffix: '(App)' }; 
     
     return { code: 'ERR', region: region };
   }
 
   async function checkClaude() {
     let region = null;
+    // Trace 拿到域名策略对应的物理国家代码
     const trace = await ctx.http.get('https://claude.ai/cdn-cgi/trace', { timeout: 3000 }).catch(() => null);
     if (trace && trace.status === 200) {
       const body = await getBody(trace);
@@ -141,7 +139,7 @@ export default async function(ctx) {
       if (match) region = match[1].toUpperCase();
     }
 
-    // 利用 API 接口穿透 CF JS Challenge
+    // Auth 接口判断是否真的解锁
     const apiRes = await ctx.http.get('https://claude.ai/api/organizations', {
       timeout: 4000,
       headers: { ...commonHeaders, 'Accept': 'application/json' }
@@ -150,14 +148,13 @@ export default async function(ctx) {
     let claudeOk = false;
     if (apiRes) {
       const contentType = apiRes.headers['Content-Type'] || apiRes.headers['content-type'] || '';
-      // 401/JSON 403 表示请求到达后端(未被区域封锁)；HTML 403 为 CF 阻断
       if (apiRes.status === 401 || apiRes.status === 200 || (apiRes.status === 403 && contentType.includes('application/json'))) {
         claudeOk = true;
       }
     }
 
-    if (claudeOk) return { code: 'OK', region };
-    return { code: 'ERR', region };
+    if (claudeOk) return { code: 'OK', region: region };
+    return { code: 'ERR', region: region };
   }
 
   async function checkGemini() {
@@ -178,8 +175,9 @@ export default async function(ctx) {
        }
     }
 
-    if (webOk) return { code: 'OK', region: 'OK' }; // Web通杀，不再强制绑定Proxy地域
-    if (!webOk && apiOk) return { code: 'OK', region: 'API' };
+    // Region 留空 (null)，将在 resultInfo 环节被 Youtube 提取到的国家代码兜底替换
+    if (webOk) return { code: 'OK', region: null }; 
+    if (!webOk && apiOk) return { code: 'OK', region: null, suffix: '(API)' };
     
     return { code: 'ERR', region: null };
   }
@@ -198,34 +196,37 @@ export default async function(ctx) {
   const claude = isLarge ? results[5] : null;
   const gemini = isLarge ? results[6] : null;
 
-  // useFallback 控制是否强制继承默认出口 IP
-  const resultInfo = (result, fallbackRegion, useFallback = true) => {
+  // 结构化 Region 组装逻辑
+  const resultInfo = (result, fallbackRegion) => {
     const available = result && result.code !== 'ERR';
     let region = '--';
     
     if (available) {
-      if (result.region && result.region !== '--') {
-        region = result.region;
-      } else if (useFallback && fallbackRegion) {
-        region = fallbackRegion;
+      let base = result.region || fallbackRegion || '--';
+      let suffix = result.suffix || '';
+      
+      // 容错：如果既没抓到基础区域也没有兜底，但有后缀(如仅API解锁但不知道哪国)，则仅显示后缀
+      if (base === '--' && suffix) {
+        region = suffix;
       } else {
-        region = 'OK'; 
+        region = `${base}${suffix}`;
       }
     }
     return { available, region };
   };
 
   const streaming = [
-    { name: 'YouTube', info: resultInfo(youtube, proxy.region, true) },
-    { name: 'Netflix', info: resultInfo(netflix, proxy.region, true) },
-    { name: 'Disney+', info: resultInfo(disney, proxy.region, true) }
+    { name: 'YouTube', info: resultInfo(youtube, proxy.region) },
+    { name: 'Netflix', info: resultInfo(netflix, proxy.region) },
+    { name: 'Disney+', info: resultInfo(disney, proxy.region) }
   ];
 
   const ai = isLarge ? [
-    // AI 探针自身拥有 Trace 能力，关闭 Fallback 防止因策略组分流不同导致地区张冠李戴
-    { name: 'ChatGPT', info: resultInfo(chatgpt, proxy.region, false) },
-    { name: 'Claude', info: resultInfo(claude, proxy.region, false) },
-    { name: 'Gemini', info: resultInfo(gemini, proxy.region, false) }
+    // 强制不给 ChatGPT 和 Claude 传递 fallbackRegion，迫使它们使用自己域名的 Trace，防止张冠李戴
+    { name: 'ChatGPT', info: resultInfo(chatgpt, null) }, 
+    { name: 'Claude', info: resultInfo(claude, null) },
+    // 强制将 Gemini 的 fallback 绑定到 youtube.region 上
+    { name: 'Gemini', info: resultInfo(gemini, youtube.region) }
   ] : [];
 
   const allServices = [...streaming, ...ai];
@@ -242,7 +243,7 @@ export default async function(ctx) {
 
   const RegionChip = region => ({
     type: 'stack',
-    padding: [2, 6], 
+    padding: [2, 6], // 弹性宽度，支持类似 "HK(App)" 这种变长字符串
     backgroundColor: C.chip, borderRadius: 5, alignItems: 'center',
     children: [
       {
