@@ -59,21 +59,24 @@ export default async function(ctx) {
     if (!res || res.status !== 200) return { code: 'ERR', region: null };
     const body = await getBody(res);
     
-    // 1. 严格拦截送中节点 (CN)
+    // 1. 严格拦截送中节点 (CN)，直接返回错误并显式标注 CN
     if (body.includes('www.google.cn')) {
       return { code: 'ERR', region: 'CN' }; 
     }
     
-    // 2. 检测黑名单限制特征
+    // 2. 检测未解锁特征
     if (body.includes('Premium is not available in your country')) {
       return { code: 'ERR', region: null };
     }
     
-    // 3. 提取地区代码 (增加 INNERTUBE_CONTEXT_GL 目标)
+    // 3. 提取地区代码 (已放宽正则限制，完美复刻 Bash 的 [^"]+ 逻辑)
     let region = 'UNKNOWN';
-    const match = body.match(/"countryCode":"(.*?)"/) || 
-                  body.match(/GL":\s*"([A-Z]{2})"/i) || 
-                  body.match(/"INNERTUBE_CONTEXT_GL"\s*:\s*"([A-Z]{2})"/i);
+    
+    // 按优先级依次尝试匹配 INNERTUBE_CONTEXT_GL, "GL", "countryCode" 和无引号 GL
+    const match = body.match(/"INNERTUBE_CONTEXT_GL"\s*:\s*"([^"]+)"/i) || 
+                  body.match(/"GL"\s*:\s*"([^"]+)"/i) || 
+                  body.match(/"countryCode"\s*:\s*"([^"]+)"/i) ||
+                  body.match(/GL"\s*:\s*"([^"]+)"/i);
                   
     if (match && match[1]) {
       region = match[1].toUpperCase();
@@ -81,6 +84,7 @@ export default async function(ctx) {
     
     return { code: 'OK', region: region };
   }
+
 
 
   async function checkNetflix() {
