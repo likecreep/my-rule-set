@@ -335,7 +335,7 @@ export default async function(ctx) {
 
   const resultInfo = (result, fallbackRegion) => {
     const available = result && result.code !== 'ERR';
-    let region = '--';
+    let region = result?.region??'--';
     
     if (available) {
       let base = result.region || fallbackRegion || '--';
