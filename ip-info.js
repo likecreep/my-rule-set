@@ -1,6 +1,6 @@
 /**
  * 🌐 Egern 全能网络信息与 IP 纯净度看板 (高精度测速版)
- * 🎨 对齐 ai-media-check 间距与字号 / 同步阻塞精准测速
+ * 🎨 对齐 ai-media-check 间距与字号 / 同步阻塞精准测速 / 严格阻断重定向
  */
 export default async function(ctx) {
   // ── 1. 动态侦测小组件尺寸 ──
@@ -53,18 +53,26 @@ export default async function(ctx) {
   const localIp = d.ipv4?.address || "获取失败";
   const gateway = d.ipv4?.gateway || "获取失败";
 
-  // ── 5. 同步阻塞式网络测速 (避开并发请求造成的异步堆栈等待) ──
+  // ── 5. 同步阻塞式网络测速 (加入 followRedirect: false 严格阻断重定向获取真实 RTT) ──
   let domesticPing = 0;
   try {
     const s1 = Date.now();
-    await ctx.http.get('http://wifi.vivo.com.cn/generate_204', { method: 'HEAD', timeout: 2000 });
+    await ctx.http.get('http://wifi.vivo.com.cn/generate_204', { 
+      method: 'HEAD', 
+      timeout: 2000, 
+      followRedirect: false 
+    });
     domesticPing = Date.now() - s1;
   } catch (e) {}
 
   let foreignPing = 0;
   try {
     const s2 = Date.now();
-    await ctx.http.get('http://1.1.1.1/generate_204', { method: 'HEAD', timeout: 2000 });
+    await ctx.http.get('http://1.1.1.1/generate_204', { 
+      method: 'HEAD', 
+      timeout: 2000, 
+      followRedirect: false 
+    });
     foreignPing = Date.now() - s2;
   } catch (e) {}
 
