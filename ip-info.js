@@ -4,7 +4,7 @@
  */
 export default async function(ctx) {
   // ── 1. 动态侦测小组件尺寸 (满足大小自适应需求) ──
-  const family = String(ctx.widgetFamily || ctx.family || ctx.widgetSize || '').toLowerCase();
+  const family = String(ctx.widgetFamily).toLowerCase();
   const isLarge = family.includes('large');
 
   // ── 2. ai-media-check 标准色彩令牌系统 (新增彩色预警) ──
