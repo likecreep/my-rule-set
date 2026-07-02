@@ -96,7 +96,7 @@ export default async function(ctx) {
     
     const innerCheck = async (filmId) => {
       const res = await ctx.http.get('https://www.netflix.com/title/' + filmId, {
-        timeout: 4000, headers: commonHeaders, redirect: 'manual'
+        timeout: 4000, headers: commonHeaders, redirect: 'follow'
       }).catch(() => null);
       
       if (!res) return { status: 'Error' };
