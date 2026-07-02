@@ -1,6 +1,6 @@
 /**
  * Egern小组件: 网络服务解锁监测
- * 终极修正版：流媒体测速探针优化 (204 / robots.txt 分流)，彻底阻断代理队列阻塞与 302 陷阱
+ * 终极安全版：全面引入 Range 截断请求 (Netflix / Disney+) 与原生 API 测速，获取主站最纯净延迟
  */
 export default async function(ctx) {
   const MODE = 'auto'; // auto / large / compact
@@ -42,21 +42,28 @@ export default async function(ctx) {
     try { return await res.text(); } catch { return ''; }
   }
 
-  // ==== 核心修复：纯净的单体探针测速 ====
-  async function exactPing(url) {
+  // ==== 核心测速探针：支持 Range 截断 ====
+  async function exactPing(url, useRange = false) {
     const start = Date.now();
+    const headers = { 'User-Agent': BASE_UA, 'Accept': '*/*' };
+    
+    // HTTP 206 截断：只拿前 11 字节，防止下载整个主站 DOM，完美规避 WAF 并获取真实边缘节点延迟
+    if (useRange) {
+      headers['Range'] = 'bytes=0-10'; 
+    }
+
     await ctx.http.get(url, { 
       timeout: 2500, 
-      followRedirect: false, // 严格阻断重定向
-      headers: { 'User-Agent': BASE_UA, 'Accept': '*/*' } 
+      followRedirect: false,
+      headers: headers
     }).catch(() => null);
+    
     return Date.now() - start;
   }
 
   // ==== 业务探测逻辑 ====
 
   async function checkYouTube() {
-    // Google 系原生支持 204 无内容响应
     const ms = await exactPing('https://www.youtube.com/generate_204');
     
     const IOS_SAFARI_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1';
@@ -89,8 +96,8 @@ export default async function(ctx) {
   }
 
   async function checkNetflix() {
-    // Netflix 边缘 CDN 探针 (robots.txt 为百字节级纯文本，绝对无路由解析负担)
-    const ms = await exactPing('https://www.netflix.com/robots.txt');
+    // 启用 Range 截断法，测试 Netflix 主站边缘延迟
+    const ms = await exactPing('https://www.netflix.com/', true);
     
     const innerCheck = async (filmId) => {
       const res = await ctx.http.get('https://www.netflix.com/title/' + filmId, {
@@ -128,8 +135,8 @@ export default async function(ctx) {
   }
 
   async function checkDisney() {
-    // Disney 边缘 CDN 探针
-    const ms = await exactPing('https://www.disneyplus.com/robots.txt');
+    // 启用 Range 截断法，直接测算 disneyplus.com 主域名的真实 CDN 边缘延迟
+    const ms = await exactPing('https://www.disneyplus.com/', true);
     
     try {
       const gqlOpts = {
@@ -176,7 +183,7 @@ export default async function(ctx) {
     let region = null;
     let ms = 0;
     
-    // CF Trace 探针 (30字节响应，直接获取代理隧道与 CF 边缘节点的延迟)
+    // CF Trace 为 30 字节极轻量纯文本探针
     const start = Date.now();
     const trace = await ctx.http.get('https://chatgpt.com/cdn-cgi/trace', { timeout: 3000, followRedirect: false }).catch(() => null);
     ms = Date.now() - start;
@@ -214,7 +221,6 @@ export default async function(ctx) {
     let region = null;
     let ms = 0;
     
-    // CF Trace 探针
     const start = Date.now();
     const trace = await ctx.http.get('https://claude.ai/cdn-cgi/trace', { timeout: 3000, followRedirect: false }).catch(() => null);
     ms = Date.now() - start;
@@ -240,7 +246,6 @@ export default async function(ctx) {
   }
 
   async function checkGemini() {
-    // Google 系原生支持 204
     const ms = await exactPing('https://gemini.google.com/generate_204');
     
     const res = await ctx.http.get('https://gemini.google.com', {
