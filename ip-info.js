@@ -1,9 +1,9 @@
 /**
- * 🌐 Egern 全能网络信息与 IP 纯净度看板 (像素级对齐优化版)
- * 🎨 完美复刻 ai-media-check 间距与色彩 / Lan 级排版对齐
+ * 🌐 Egern 全能网络信息与 IP 纯净度看板 (弹性瀑布流版)
+ * 🎨 完全对齐 ai-media-check 的组件间距、动态留白与字号规范
  */
 export default async function(ctx) {
-  // ── 1. 动态侦测小组件尺寸 ──
+  // ── 1. 动态侦测小组件尺寸 (基于官方 ctx.widgetFamily 规范) ──
   const family = String(ctx.widgetFamily || '').toLowerCase();
   const isLarge = family === 'systemlarge' || family === 'systemextralarge';
 
@@ -21,20 +21,23 @@ export default async function(ctx) {
     fail:     { light: '#D64545', dark: '#FF626A' }  
   };
 
-  // ── 3. 严格对标 ai-media-check 与 Lan 的弹性布局参数 ──
+  // ── 3. 严格对标 ai-media-check 尺寸体系 ──
   const layout = {
-    padding:    isLarge ? [10, 12, 10, 12] : [12, 12, 12, 12], // 完全对齐 ai-media-check 外边距
-    headerFz:   isLarge ? 14 : 12,
-    headerIcz:  isLarge ? 15 : 14,
-    pingFz:     isLarge ? 11 : 9.5,
-    pingIcz:    isLarge ? 11 : 9.5,
-    pingPad:    isLarge ? [3, 6] : [2, 5],
-    rowFz:      isLarge ? 13 : 11,    // 对齐 Lan 脚本的 11px 标准字号
-    rowIcz:     isLarge ? 15 : 13,    // 对齐 Lan 脚本的 13px 图标
-    rowGap:     6,                    // 行内图标与文字间距，对标 Lan
-    itemGap:    isLarge ? 6 : 4,      // 组内上下行间距，对标 ai-media-check
-    groupPad:   isLarge ? [8, 10] : [6, 8], // 灰色卡片内部边距，对标 ai-media-check
-    footerFz:   isLarge ? 11 : 9
+    // 外边距对标 ai-media-check[cite: 5]
+    padding:    isLarge ? [10, 12, 10, 12] : [12, 12, 12, 12], 
+    // 标题区对标 "NETWORK MONITOR" 10px[cite: 5]
+    headerFz:   isLarge ? 12 : 10,
+    headerIcz:  isLarge ? 17 : 15, // 地球图标 15px[cite: 5]
+    timeFz:     isLarge ? 12 : 10,
+    // 测速区对标 "全部可用" 11px[cite: 5]
+    delayFz:    isLarge ? 13 : 11,
+    delayIcz:   isLarge ? 13 : 11,
+    // 数据行对标 Lan 脚本 11px
+    rowFz:      isLarge ? 13 : 11,    
+    rowIcz:     isLarge ? 15 : 13,    
+    rowGap:     6,                    
+    // 灰色面板内边距对标 ai-media-check[cite: 5]
+    groupPad:   isLarge ? [8, 10] : [6, 8]
   };
 
   // ── 4. 获取系统基础网络信息 ──
@@ -73,7 +76,7 @@ export default async function(ctx) {
     httpGetJson('https://my.ippure.com/v1/info')
   ]);
 
-  // ── 6. 解析直连公网与位置数据 (Lan 样式本地国旗) ──
+  // ── 6. 解析直连公网与位置数据 ──
   let pubIp = "获取失败", pubLoc = "未知位置", pubIsp = "未知运营商";
   let domesticPing = directRes.ping;
 
@@ -125,8 +128,9 @@ export default async function(ctx) {
     }
   }
 
-  // ── 8. UI 统一样式构建器 ──
+  // ── 8. 格式化输出与颜色构造 ──
   const now = new Date();
+  // 严格对齐 ai-media-check 的 HH:mm 等宽时间显示[cite: 5]
   const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
   const getPingColor = (ping) => {
@@ -142,7 +146,9 @@ export default async function(ctx) {
   const Row = (ic, icColor, label, val, valCol) => ({
     type: 'stack', direction: 'row', alignItems: 'center', gap: layout.rowGap,
     children: [
-      { type: 'image', src: `sf-symbol:${ic}`, color: icColor, width: layout.rowIcz, height: layout.rowIcz },
+      { type: 'stack', width: layout.rowIcz, alignItems: 'center', children: [
+          { type: 'image', src: `sf-symbol:${ic}`, color: icColor, width: layout.rowIcz, height: layout.rowIcz }
+      ]},
       { type: 'text', text: label, font: { size: layout.rowFz }, textColor: C.dim },
       { type: 'spacer' },
       { type: 'text', text: val, font: { size: layout.rowFz, weight: 'bold', family: 'Menlo' }, textColor: valCol, maxLines: 1, minScale: 0.6 }
@@ -154,65 +160,65 @@ export default async function(ctx) {
     type: 'widget',
     backgroundColor: C.bg,
     padding: layout.padding,
-    gap: 8, // 核心逻辑：依靠全局 gap=8 控制所有核心层级间距，彻底消除多余白边
+    // 根节点强制应用 ai-media-check 的 gap: 8，确保所有主要模块间距精确[cite: 5]
+    gap: 8, 
     children: [
-      // 🌟 第一行标题 (去除了 ms)
+      // 🌟 第 1 行：左侧运营商/网络名 (bold, 10px)，右侧时间 (monospaced, 10px)[cite: 5]
       {
         type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
         children: [
           { type: 'image', src: `sf-symbol:${netIcon}`, color: C.accent, width: layout.headerIcz, height: layout.headerIcz },
-          { type: 'text', text: `${pubIsp} · ${netName}`, font: { size: layout.headerFz, weight: 'bold' }, textColor: C.dim, maxLines: 1, minScale: 0.7, flex: 1 },
-          {
-            type: 'stack', direction: 'row', alignItems: 'center', gap: 4, padding: layout.pingPad, borderRadius: 6, backgroundColor: C.chip,
-            children: [
-              { type: 'stack', direction: 'row', alignItems: 'center', gap: 2, children: [
-                  { type: 'image', src: 'sf-symbol:mappin.circle.fill', color: domColor, width: layout.pingIcz, height: layout.pingIcz },
-                  { type: 'text', text: domesticPing > 0 ? `${domesticPing}` : "-", font: { size: layout.pingFz, weight: 'bold', family: 'Menlo' }, textColor: domColor }
-              ]},
-              { type: 'text', text: '|', font: { size: layout.pingFz, weight: 'light' }, textColor: C.hairline },
-              { type: 'stack', direction: 'row', alignItems: 'center', gap: 2, children: [
-                  { type: 'image', src: 'sf-symbol:globe.fill', color: forColor, width: layout.pingIcz, height: layout.pingIcz },
-                  { type: 'text', text: foreignPing > 0 ? `${foreignPing}` : "-", font: { size: layout.pingFz, weight: 'bold', family: 'Menlo' }, textColor: forColor }
-              ]}
-            ]
-          }
+          { type: 'text', text: `${pubIsp} · ${netName}`, font: { size: layout.headerFz, weight: 'bold' }, textColor: C.dim, maxLines: 1, minScale: 0.7 },
+          { type: 'spacer' },
+          { type: 'text', text: timeStr, font: { size: layout.timeFz, weight: 'medium', design: 'monospaced' }, textColor: C.dim }
         ]
       },
 
-      // 🌟 主体内容：两组深色卡片
+      // 🌟 第 2 行：测速延迟独占一行，右侧对齐，字体对齐 "全部可用" 11px Semibold[cite: 5]
+      {
+        type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
+        children: [
+          { type: 'spacer' },
+          { type: 'image', src: 'sf-symbol:mappin.circle.fill', color: domColor, width: layout.delayIcz, height: layout.delayIcz },
+          { type: 'text', text: domesticPing > 0 ? `${domesticPing}ms` : "-", font: { size: layout.delayFz, weight: 'semibold' }, textColor: domColor },
+          { type: 'spacer', length: 12 },
+          { type: 'image', src: 'sf-symbol:globe.fill', color: forColor, width: layout.delayIcz, height: layout.delayIcz },
+          { type: 'text', text: foreignPing > 0 ? `${foreignPing}ms` : "-", font: { size: layout.delayFz, weight: 'semibold' }, textColor: forColor }
+        ]
+      },
+
+      // 🌟 主体内容：包裹在垂直 flex 容器内，继承 gap: 8[cite: 5]
       {
         type: 'stack', direction: 'column', flex: 1, gap: 8,
         children: [
-          // 第一组：本地网络
+          // 第 1 组：本地与公网网络 (内部利用 spacer 动态弹簧式拉开间距)
           {
-            type: 'stack', direction: 'column', gap: layout.itemGap, padding: layout.groupPad, backgroundColor: C.panel, borderRadius: 8,
+            type: 'stack', direction: 'column', flex: 1, padding: layout.groupPad, backgroundColor: C.panel, borderRadius: 8,
             children: [
+              Row("globe", C.accent, "公网 IP", pubIp, C.ok),
+              { type: 'spacer' },
+              Row("mappin.and.ellipse", C.accent, "位置", pubLoc, C.text),
+              { type: 'spacer' },
               Row("iphone", C.accent, "内网 IP", localIp, C.text),
-              Row("wifi.router.fill", C.accent, "路由网关", gateway, C.text),
-              Row("globe", C.accent, "直连公网", pubIp, C.ok),
-              Row("mappin.and.ellipse", C.accent, "本地位置", pubLoc, C.text)
+              { type: 'spacer' },
+              Row("wifi.router.fill", C.accent, "路由网关", gateway, C.text)
             ]
           },
-          // 第二组：落地网络与纯净度
+          // 第 2 组：落地网络与纯净度 (内部利用 spacer 动态弹簧式拉开间距)
           {
-            type: 'stack', direction: 'column', gap: layout.itemGap, padding: layout.groupPad, backgroundColor: C.panel, borderRadius: 8,
+            type: 'stack', direction: 'column', flex: 1, padding: layout.groupPad, backgroundColor: C.panel, borderRadius: 8,
             children: [
               Row("network", C.accent, "落地 IP", proxyIp, C.ok),
+              { type: 'spacer' },
               Row("location.fill", C.accent, "位置", proxyLoc, C.text), 
+              { type: 'spacer' },
               Row("server.rack", C.accent, "落地机房", proxyIsp, C.text),
+              { type: 'spacer' },
               Row("building.2.fill", C.accent, "原生属性", nativeText, C.text),
+              { type: 'spacer' },
               Row(riskIc, riskCol, "风险评级", riskTxt, riskCol)
             ]
           }
-        ]
-      },
-
-      // 🌟 右下角纯净更新时间 (去掉了“更新于”)
-      {
-        type: 'stack', direction: 'row', alignItems: 'center',
-        children: [
-          { type: 'spacer' },
-          { type: 'text', text: timeStr, font: { size: layout.footerFz, weight: 'bold', family: 'Menlo' }, textColor: C.dim }
         ]
       }
     ]
