@@ -108,8 +108,7 @@ export default async function(ctx) {
     // 如果 Header 没抓到，走正则兜底
     if (finalRegion === 'UNKNOWN') {
       const match = body.match(/"?INNERTUBE_CONTEXT_GL"?\s*:\s*"([^"]+)"/i) || 
-                    body.match(/"?countryCode"?\s*:\s*"([^"]+)"/i) ||
-                    body.match(/"?GL"?\s*:\s*"([^"]+)"/i);
+                    body.match(/"?countryCode"?\s*:\s*"([^"]+)"/i);
       if (match && match[1]) {
         finalRegion = match[1].toUpperCase();
       }
