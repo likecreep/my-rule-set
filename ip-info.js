@@ -1,6 +1,6 @@
 /**
  * 🌐 Egern 全能网络信息与 IP 纯净度看板 (高精度测速版)
- * 🎨 对齐 ai-media-check 间距与字号 / 同步阻塞精准测速 / 严格遵循官方 API 规范
+ * 🎨 对齐 ai-media-check 间距与字号 / 同步阻塞精准测速 / Lsdl 方案获取 AS
  */
 export default async function(ctx) {
   // ── 1. 动态侦测小组件尺寸 ──
@@ -76,7 +76,7 @@ export default async function(ctx) {
     foreignPing = Date.now() - s2;
   } catch (e) {}
 
-  // ── 6. 获取节点 IP 与纯净度数据 ──
+  // ── 6. 获取节点 IP 与纯净度数据 (新增 ip-api 并发请求获取落地 AS) ──
   const TIMEOUT_MS = 3500;
   const httpGetJson = async (url) => {
     try {
@@ -87,9 +87,10 @@ export default async function(ctx) {
     }
   };
 
-  const [directRes, proxyRes] = await Promise.all([
+  const [directRes, proxyRes, ipApiRes] = await Promise.all([
     httpGetJson('https://myip.ipip.net/json'),
-    httpGetJson('https://my.ippure.com/v1/info')
+    httpGetJson('https://my.ippure.com/v1/info'),
+    httpGetJson('http://ip-api.com/json/?lang=zh-CN') // 引入 lsdl 的 API
   ]);
 
   // ── 7. 解析直连公网与位置数据 ──
@@ -124,7 +125,6 @@ export default async function(ctx) {
   if (proxyRes) {
     const p = proxyRes;
     proxyIp = p.ip || "获取失败";
-    proxyIsp = p.asn ? `AS${p.asn} ${p.asOrganization || ""}`.trim() : "未知";
     
     let code = p.countryCode || "";
     if (code.toUpperCase() === 'TW') code = 'CN';
@@ -140,6 +140,11 @@ export default async function(ctx) {
       else if (risk >= 40) { riskTxt = `中等风险 (${risk})`; riskCol = C.warn; riskIc = "exclamationmark.shield.fill"; }
       else { riskTxt = `纯净低危 (${risk})`; riskCol = C.ok; riskIc = "checkmark.shield.fill"; }
     }
+  }
+
+  // 🌟 使用 lsdl 的 ip-api.com 数据提取 as 作为落地机房
+  if (ipApiRes && ipApiRes.as) {
+    proxyIsp = ipApiRes.as;
   }
 
   // ── 9. 格式化输出与颜色构造 ──
