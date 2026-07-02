@@ -1,8 +1,6 @@
 /**
  * Egern小组件: 网络服务解锁监测 (穿透 WAF 黑名单校验版)
- * 大组件: 流媒体 + AI 全部显示
- * 中/小组件: 只显示流媒体
- * 更新: AI 服务深度解锁检测重构版 (匹配最新限制规则)
+ * 重构版：全尺寸支持流媒体 + AI 双栏显示，引入延迟 (ms) 与 Emoji 标识
  */
 export default async function(ctx) {
   const MODE = 'auto'; // auto / large / compact
@@ -26,11 +24,23 @@ export default async function(ctx) {
   const isLarge = MODE === 'large' || (MODE === 'auto' && family.includes('large'));
   const isCompact = !isLarge;
 
+  // ==== 核心工具函数 ====
+  
+  // 国籍转 Emoji
+  const getFlagEmoji = (cc) => {
+    if (!cc || cc === 'XX' || cc === '--' || cc === 'UNKNOWN' || cc === 'OK' || cc.length < 2) return '🌐';
+    const code = cc.substring(0, 2).toUpperCase();
+    return code.replace(/./g, char => String.fromCodePoint(char.charCodeAt(0) + 127397));
+  };
+
+  // 增加延迟探测的 wrapper
   async function safe(fn) {
+    const start = Date.now();
     try {
-      return await fn();
+      const res = await fn();
+      return { ...res, ms: Date.now() - start };
     } catch {
-      return { code: 'ERR', region: null };
+      return { code: 'ERR', region: null, ms: Date.now() - start };
     }
   }
 
@@ -38,6 +48,7 @@ export default async function(ctx) {
     try { return await res.text(); } catch { return ''; }
   }
 
+  // ==== 探测逻辑 (保留原脚本判定规则) ====
   async function fetchProxy() {
     try {
       const res = await ctx.http.get('http://ip-api.com/json/?lang=zh-CN', { timeout: 4000 });
@@ -51,14 +62,12 @@ export default async function(ctx) {
 
   async function checkYouTube() {
     const IOS_SAFARI_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1';
-    
     const headers = { 
       'User-Agent': IOS_SAFARI_UA,
       'Accept-Language': 'en-US,en;q=0.9',
-      'Cookie': 'SOCS=CAI' // 强制绕过隐私拦截页
+      'Cookie': 'SOCS=CAI'
     };
     
-    // 发起请求 (使用 Egern API)
     const res = await ctx.http.get('https://www.youtube.com/premium', {
       timeout: 4000, 
       headers: headers
@@ -66,19 +75,12 @@ export default async function(ctx) {
     
     if (!res || res.status !== 200) return { code: 'ERR', region: null };
 
-    // ==========================================
-    // 1. 优先从 Header Cookie 中精准提取国家代码
-    // ==========================================
     let regionFromCookie = null;
     const responseHeaders = res.headers || {};
     let setCookie = responseHeaders['Set-Cookie'] || responseHeaders['set-cookie'] || '';
     
-    // 兼容 Egern 的 Header 数组格式
-    if (Array.isArray(setCookie)) {
-      setCookie = setCookie.join('; ');
-    } else if (typeof setCookie !== 'string') {
-      setCookie = String(setCookie);
-    }
+    if (Array.isArray(setCookie)) setCookie = setCookie.join('; ');
+    else if (typeof setCookie !== 'string') setCookie = String(setCookie);
     
     const privacyMatch = setCookie.match(/VISITOR_PRIVACY_METADATA=([^;]+)/);
     if (privacyMatch) {
@@ -86,31 +88,18 @@ export default async function(ctx) {
         const b64 = decodeURIComponent(privacyMatch[1]);
         const decoded = atob(b64);
         regionFromCookie = decoded.substring(2, 4).toUpperCase();
-      } catch (e) {
-        // 解码异常静默，交由后续 Body 兜底
-      }
+      } catch (e) {}
     }
 
-    // ==========================================
-    // 2. 正文特征与兜底分析
-    // ==========================================
     const body = await res.text();
-    
-    // 严格拦截送中节点 (Body 层阻断)
     if (body.includes('Premium is not available in your country')) return { code: 'ERR', region: regionFromCookie };
     
     let finalRegion = regionFromCookie || 'UNKNOWN';
-    
-    // body抓到的区域优先
     const match = body.match(/"INNERTUBE_CONTEXT_GL"\s*:\s*"([^"]+)"/i)
-    if (match && match[1]) {
-      finalRegion = match[1].toUpperCase();
-    }
+    if (match && match[1]) finalRegion = match[1].toUpperCase();
     
     return { code: 'OK', region: finalRegion };
   }
-
-
 
   async function checkNetflix() {
     const innerCheck = async (filmId) => {
@@ -123,10 +112,9 @@ export default async function(ctx) {
       if (res.status === 404) return { status: 'Not Found' };
       
       if (res.status === 200) {
-        let region = 'US'; // Fallback
+        let region = 'US';
         const headers = res.headers || {};
         const url = headers['x-originating-url'] || headers['X-Originating-Url'];
-        
         if (url) {
           const parts = url.split('/');
           if (parts.length > 3) {
@@ -176,13 +164,9 @@ export default async function(ctx) {
       };
       
       const gqlRes = await ctx.http.post('https://disney.api.edge.bamgrid.com/graph/v1/device/graphql', gqlOpts).catch(() => null);
-      if (!gqlRes || gqlRes.status !== 200) {
-        return { code: 'ERR', region: null };
-      }
+      if (!gqlRes || gqlRes.status !== 200) return { code: 'ERR', region: null };
 
-      const gqlBody = await getBody(gqlRes);
-      const data = JSON.parse(gqlBody);
-      
+      const data = JSON.parse(await getBody(gqlRes));
       if (!data?.errors && data?.extensions?.sdk) {
         const sdk = data.extensions.sdk;
         const inSupportedLocation = sdk.session?.inSupportedLocation;
@@ -203,10 +187,8 @@ export default async function(ctx) {
     }
   }
 
-  // ==== ChatGPT 重构版 ====
   async function checkChatGPT() {
     let region = null;
-    // 获取 Cloudflare Trace 节点地，便于显示
     const trace = await ctx.http.get('https://chatgpt.com/cdn-cgi/trace', { timeout: 3000 }).catch(() => null);
     if (trace && trace.status === 200) {
       const body = await getBody(trace);
@@ -214,13 +196,11 @@ export default async function(ctx) {
       if (match) region = match[1].toUpperCase();
     }
 
-    // Web 端校验
     const resWeb = await ctx.http.get('https://api.openai.com/compliance/cookie_requirements', {
       timeout: 4000,
       headers: { ...commonHeaders, 'authority': 'api.openai.com', 'authorization': 'Bearer null' }
     }).catch(() => null);
 
-    // App 端校验
     const resApp = await ctx.http.get('https://ios.chat.openai.com/', {
       timeout: 4000,
       headers: { ...commonHeaders, 'authority': 'ios.chat.openai.com' }
@@ -246,8 +226,7 @@ export default async function(ctx) {
     return { code: 'ERR', region: region };
   }
 
-  // ==== Claude 重构版 ====
-    async function checkClaude() {
+  async function checkClaude() {
     let region = null;
     const trace = await ctx.http.get('https://claude.ai/cdn-cgi/trace', { timeout: 3000 }).catch(() => null);
     if (trace && trace.status === 200) {
@@ -256,7 +235,6 @@ export default async function(ctx) {
       if (match) region = match[1].toUpperCase();
     }
 
-    // 禁用重定向，直接探测首包状态
     const res = await ctx.http.get('https://claude.ai/', { 
         timeout: 4000, 
         headers: commonHeaders,
@@ -265,28 +243,16 @@ export default async function(ctx) {
 
     if (!res) return { code: 'ERR', region: region };
 
-    // 1. 判断是否被 Claude 边缘节点直接 30x 重定向到无服务区域页面
     if (res.status >= 300 && res.status < 400) {
         const loc = res.headers['Location'] || res.headers['location'] || '';
-        if (loc.includes('app-unavailable-in-region')) {
-            return { code: 'ERR', region: region }; // 明确未解锁
-        }
-    } 
-    // 2. 判断 200 OK 页面中是否渲染了无服务特征 (备用后备)
-    else if (res.status === 200) {
+        if (loc.includes('app-unavailable-in-region')) return { code: 'ERR', region: region };
+    } else if (res.status === 200) {
         const body = await getBody(res);
-        if (body.includes('app-unavailable-in-region')) {
-            return { code: 'ERR', region: region };
-        }
+        if (body.includes('app-unavailable-in-region')) return { code: 'ERR', region: region };
     }
-
-    // 3. 核心修复点：除了明确的黑名单路由，其他 HTTP 状态（如 Cloudflare 触发的 403 盾，或 302 到 /login）
-    // 均代表 IP 的 Geo-IP 已经处于解锁区域内。
     return { code: 'OK', region: region };
   }
 
-
-  // ==== Gemini 重构版 ====
   async function checkGemini() {
     const res = await ctx.http.get('https://gemini.google.com', {
       timeout: 5000, headers: commonHeaders, followRedirect: true
@@ -295,51 +261,41 @@ export default async function(ctx) {
     if (!res) return { code: 'ERR', region: null };
     const body = await getBody(res);
     
-    // 判断是否包含解锁特性标识
-    const isUnlocked = body.includes('45631641,null,true');
-    if (!isUnlocked) {
-        return { code: 'ERR', region: null };
-    }
+    if (!body.includes('45631641,null,true')) return { code: 'ERR', region: null };
 
-    // 正则提取当前解锁国家代码 (例如: ,2,1,200,"USA")
     let region = null;
     const match = body.match(/,2,1,200,"([A-Z]{2,3})"/);
-    if (match && match[1]) {
-        region = match[1];
-    }
+    if (match && match[1]) region = match[1];
     
     return { code: 'OK', region: region || 'OK' };
   }
 
-  const checks = isLarge
-    ? [safe(fetchProxy), safe(checkYouTube), safe(checkNetflix), safe(checkDisney), safe(checkChatGPT), safe(checkClaude), safe(checkGemini)]
-    : [safe(fetchProxy), safe(checkYouTube), safe(checkNetflix), safe(checkDisney)];
+  // 解除对于面板大小的探测限制，并发执行所有任务
+  const checks = [
+    safe(fetchProxy), safe(checkYouTube), safe(checkNetflix), 
+    safe(checkDisney), safe(checkChatGPT), safe(checkClaude), safe(checkGemini)
+  ];
 
   const results = await Promise.all(checks);
-
-  const proxy = results[0];
-  const youtube = results[1];
-  const netflix = results[2];
-  const disney = results[3];
-  const chatgpt = isLarge ? results[4] : null;
-  const claude = isLarge ? results[5] : null;
-  const gemini = isLarge ? results[6] : null;
+  const [proxy, youtube, netflix, disney, chatgpt, claude, gemini] = results;
 
   const resultInfo = (result, fallbackRegion) => {
     const available = result && result.code !== 'ERR';
-    let region = result?.region??'--';
+    let region = '--';
+    let ms = result?.ms || 0;
     
     if (available) {
       let base = result.region || fallbackRegion || '--';
       let suffix = result.suffix || '';
+      let emoji = getFlagEmoji(base);
       
       if (base === '--' && suffix) {
-        region = suffix;
+        region = `${emoji} ${suffix}`;
       } else {
-        region = `${base}${suffix}`;
+        region = `${emoji} ${base}${suffix}`;
       }
     }
-    return { available, region };
+    return { available, region, ms };
   };
 
   const streaming = [
@@ -348,11 +304,11 @@ export default async function(ctx) {
     { name: 'Disney+', info: resultInfo(disney, proxy.region) }
   ];
 
-  const ai = isLarge ? [
-    { name: 'ChatGPT', info: resultInfo(chatgpt, null) }, 
-    { name: 'Claude', info: resultInfo(claude, null) },
-    { name: 'Gemini', info: resultInfo(gemini, null) }
-  ] : [];
+  const ai = [
+    { name: 'ChatGPT', info: resultInfo(chatgpt, proxy.region) }, 
+    { name: 'Claude', info: resultInfo(claude, proxy.region) },
+    { name: 'Gemini', info: resultInfo(gemini, proxy.region) }
+  ];
 
   const allServices = [...streaming, ...ai];
   const okCount = allServices.filter(item => item.info.available).length;
@@ -361,32 +317,39 @@ export default async function(ctx) {
   const now = new Date();
   const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
+  // ==== UI 渲染组件 ====
   const Dot = available => ({
-    type: 'stack', width: 9, height: 9, borderRadius: 5,
+    type: 'stack', width: isCompact ? 6 : 9, height: isCompact ? 6 : 9, borderRadius: isCompact ? 3 : 4.5,
     backgroundColor: available ? C.ok : C.fail, children: []
   });
 
   const RegionChip = region => ({
     type: 'stack',
-    padding: [2, 6], 
-    backgroundColor: C.chip, borderRadius: 5, alignItems: 'center',
+    padding: isCompact ? [1.5, 4] : [2, 6], 
+    backgroundColor: C.chip, borderRadius: 4, alignItems: 'center',
     children: [
       {
         type: 'text', text: region || '--',
-        font: { size: 10, weight: 'bold', design: 'monospaced' },
+        font: { size: isCompact ? 8 : 10, weight: 'bold', design: 'monospaced' },
         textColor: C.text, maxLines: 1
       }
     ]
   });
 
   const ServiceRow = item => ({
-    type: 'stack', direction: 'row', alignItems: 'center', gap: 8,
+    type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
     children: [
       {
         type: 'text', text: item.name,
-        font: { size: isCompact ? 13 : 12, weight: 'semibold' },
+        font: { size: isCompact ? 10 : 12, weight: 'semibold' },
         textColor: C.text, flex: 1, maxLines: 1
       },
+      // 成功解锁时插入 MS 延迟时间节点
+      ...(item.info.available ? [{
+         type: 'text', text: `${item.info.ms}ms`,
+         font: { size: isCompact ? 8 : 10, weight: 'medium', design: 'monospaced' },
+         textColor: C.dim, maxLines: 1
+      }] : []),
       RegionChip(item.info.region),
       Dot(item.info.available)
     ]
@@ -399,16 +362,16 @@ export default async function(ctx) {
   const Group = (label, items) => {
     const groupOk = items.filter(item => item.info.available).length;
     return {
-      type: 'stack', direction: 'column',
-      gap: isCompact ? 8 : 6, padding: isCompact ? [10, 12] : [8, 10],
+      type: 'stack', direction: 'column', flex: 1,
+      gap: isCompact ? 4 : 6, padding: isCompact ? [6, 8] : [8, 10],
       backgroundColor: C.panel, borderRadius: 8,
       children: [
         {
           type: 'stack', direction: 'row', alignItems: 'center',
           children: [
-            { type: 'text', text: label, font: { size: 11, weight: 'bold' }, textColor: C.accent, maxLines: 1 },
+            { type: 'text', text: label, font: { size: isCompact ? 9 : 11, weight: 'bold' }, textColor: C.accent, maxLines: 1 },
             { type: 'spacer' },
-            { type: 'text', text: `${groupOk}/${items.length}`, font: { size: 10, weight: 'semibold', design: 'monospaced' }, textColor: C.dim, maxLines: 1 }
+            { type: 'text', text: `${groupOk}/${items.length}`, font: { size: isCompact ? 9 : 10, weight: 'semibold', design: 'monospaced' }, textColor: C.dim, maxLines: 1 }
           ]
         },
         ServiceRow(items[0]), Hairline(), ServiceRow(items[1]), Hairline(), ServiceRow(items[2])
@@ -418,7 +381,8 @@ export default async function(ctx) {
 
   return {
     type: 'widget',
-    backgroundColor: C.bg, padding: isCompact ? [12, 14, 12, 14] : [10, 12, 10, 12], gap: isCompact ? 10 : 8,
+    backgroundColor: C.bg, 
+    padding: isCompact ? [12, 12, 12, 12] : [10, 12, 10, 12], gap: 8,
     children: [
       {
         type: 'stack', direction: 'row', alignItems: 'center',
@@ -440,7 +404,7 @@ export default async function(ctx) {
           Dot(lockedCount === 0),
           {
             type: 'text', text: `${okCount}/${allServices.length}`,
-            font: { size: isCompact ? 28 : 24, weight: 'bold', design: 'monospaced' }, textColor: C.text, maxLines: 1
+            font: { size: 24, weight: 'bold', design: 'monospaced' }, textColor: C.text, maxLines: 1
           },
           { type: 'spacer' },
           {
@@ -449,8 +413,16 @@ export default async function(ctx) {
           }
         ]
       },
-      Group('流媒体解锁', streaming),
-      ...(isLarge ? [Group('AI 服务检测', ai)] : [])
+      // 核心矩阵布局切换逻辑
+      {
+        type: 'stack',
+        direction: isCompact ? 'row' : 'column',
+        gap: 8, flex: 1,
+        children: [
+          Group(isCompact ? '流媒体' : '流媒体解锁', streaming),
+          Group(isCompact ? 'AI服务' : 'AI 服务检测', ai)
+        ]
+      }
     ]
   };
 }
