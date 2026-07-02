@@ -91,27 +91,20 @@ export default async function(ctx) {
       }
     }
 
-    // 严格拦截送中节点 (Header 层阻断)
-    if (regionFromCookie === 'CN') return { code: 'ERR', region: 'CN' };
-
     // ==========================================
     // 2. 正文特征与兜底分析
     // ==========================================
     const body = await res.text();
     
     // 严格拦截送中节点 (Body 层阻断)
-    if (body.includes('www.google.cn')) return { code: 'ERR', region: 'CN' }; 
-    if (body.includes('Premium is not available in your country')) return { code: 'ERR', region: null };
+    if (body.includes('Premium is not available in your country')) return { code: 'ERR', region: regionFromCookie };
     
     let finalRegion = regionFromCookie || 'UNKNOWN';
     
-    // 如果 Header 没抓到，走正则兜底
-    if (finalRegion === 'UNKNOWN') {
-      const match = body.match(/"?INNERTUBE_CONTEXT_GL"?\s*:\s*"([^"]+)"/i) || 
-                    body.match(/"?countryCode"?\s*:\s*"([^"]+)"/i);
-      if (match && match[1]) {
-        finalRegion = match[1].toUpperCase();
-      }
+    // body抓到的区域优先
+    const match = body.match(/"INNERTUBE_CONTEXT_GL"\s*:\s*"([^"]+)"/i)
+    if (match && match[1]) {
+      finalRegion = match[1].toUpperCase();
     }
     
     return { code: 'OK', region: finalRegion };
