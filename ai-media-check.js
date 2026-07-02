@@ -1,6 +1,6 @@
 /**
  * Egern小组件: 网络服务解锁监测
- * 终极完美版：采用 AASA (Apple App Site Association) 纯静态探针，获取主域名最纯净且绝对防封的极速延迟
+ * 终极完美版：采用 AASA 纯静态探针获取极速延迟 / 严格遵循官方 API (修正 redirect 参数) / 增加秒数显示
  */
 export default async function(ctx) {
   const MODE = 'auto'; // auto / large / compact
@@ -22,7 +22,7 @@ export default async function(ctx) {
   const commonHeaders = { 'User-Agent': BASE_UA };
 
   const family = String(ctx.widgetFamily || ctx.family || ctx.widgetSize || '').toLowerCase();
-  const isLarge = MODE === 'large' || (MODE === 'auto' && family.includes('large'));
+  const isLarge = MODE === 'large' || (MODE === 'auto' && (family.includes('large') || family === 'systemextralarge'));
   const isCompact = !isLarge;
 
   const getFlagEmoji = (cc) => {
@@ -48,7 +48,7 @@ export default async function(ctx) {
     const start = Date.now();
     await ctx.http.get(url, { 
       timeout: 2500, 
-      followRedirect: false, // 严格阻断重定向
+      redirect: 'manual', // 严格阻断重定向
       // 使用 iOS UA，完美伪装成苹果设备拉取 Universal Links 配置文件，免除一切 WAF 爬虫质疑
       headers: { 'User-Agent': IOS_UA, 'Accept': 'application/json, text/plain, */*' } 
     }).catch(() => null);
@@ -96,7 +96,7 @@ export default async function(ctx) {
     
     const innerCheck = async (filmId) => {
       const res = await ctx.http.get('https://www.netflix.com/title/' + filmId, {
-        timeout: 4000, headers: commonHeaders, followRedirect: false
+        timeout: 4000, headers: commonHeaders, redirect: 'manual'
       }).catch(() => null);
       
       if (!res) return { status: 'Error' };
@@ -180,7 +180,7 @@ export default async function(ctx) {
     
     // CF Trace 探针
     const start = Date.now();
-    const trace = await ctx.http.get('https://chatgpt.com/cdn-cgi/trace', { timeout: 3000, followRedirect: false }).catch(() => null);
+    const trace = await ctx.http.get('https://chatgpt.com/cdn-cgi/trace', { timeout: 3000, redirect: 'manual' }).catch(() => null);
     ms = Date.now() - start;
 
     if (trace && trace.status === 200) {
@@ -217,7 +217,7 @@ export default async function(ctx) {
     let ms = 0;
     
     const start = Date.now();
-    const trace = await ctx.http.get('https://claude.ai/cdn-cgi/trace', { timeout: 3000, followRedirect: false }).catch(() => null);
+    const trace = await ctx.http.get('https://claude.ai/cdn-cgi/trace', { timeout: 3000, redirect: 'manual' }).catch(() => null);
     ms = Date.now() - start;
 
     if (trace && trace.status === 200) {
@@ -226,7 +226,7 @@ export default async function(ctx) {
     }
 
     const res = await ctx.http.get('https://claude.ai/', { 
-        timeout: 4000, headers: commonHeaders, followRedirect: false
+        timeout: 4000, headers: commonHeaders, redirect: 'manual'
     }).catch(() => null);
 
     if (!res) return { code: 'ERR', region: region, ms };
@@ -244,7 +244,7 @@ export default async function(ctx) {
     const ms = await exactPing('https://gemini.google.com/generate_204');
     
     const res = await ctx.http.get('https://gemini.google.com', {
-      timeout: 5000, headers: commonHeaders, followRedirect: true
+      timeout: 5000, headers: commonHeaders, redirect: 'follow'
     }).catch(() => null);
     
     if (!res) return { code: 'ERR', region: null, ms };
