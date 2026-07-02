@@ -1,17 +1,18 @@
 /**
  * 🌐 Egern 全能网络信息与 IP 纯净度看板 (单列响应式版)
- * 🎨 采用 ai-media-check 极客色彩体系，动态自适应面板大小
+ * 🎨 采用 ai-media-check 极客色彩体系，精准适配官方尺寸参数
  */
 export default async function(ctx) {
-  // ── 1. 动态侦测小组件尺寸 (满足大小自适应需求) ──
-  const family = String(ctx.widgetFamily).toLowerCase();
-  const isLarge = family.includes('large');
+  // ── 1. 动态侦测小组件尺寸 (基于官方 ctx.widgetFamily 规范) ──
+  const family = String(ctx.widgetFamily || '').toLowerCase();
+  // 当组件为大尺寸或超大尺寸(iPad)时，启用大号布局参数
+  const isLarge = family === 'systemlarge' || family === 'systemextralarge';
 
-  // ── 2. ai-media-check 标准色彩令牌系统 (新增彩色预警) ──
+  // ── 2. ai-media-check 标准色彩令牌系统 (含彩色预警) ──
   const C = {
     bg:       { light: '#FFFFFF', dark: '#050506' },
     text:     { light: '#111114', dark: '#F7F7F8' },
-    dim:      { light: '#7B7B84', dark: '#85858E' },
+    dim:      { light: '#7B7B84', dark: '#85858E' }, // 暗灰色，用于次要文本和统一标题
     panel:    { light: '#F5F5F7', dark: '#111114' },
     hairline: { light: '#E4E4E8', dark: '#242429' },
     chip:     { light: '#ECECF1', dark: '#202025' },
@@ -24,16 +25,16 @@ export default async function(ctx) {
   // ── 3. 动态弹性布局配置参数 ──
   const layout = {
     padding:    isLarge ? [24, 28, 24, 28] : [14, 16, 12, 16],
-    headerFz:   isLarge ? 17 : 13.5,
-    headerIcz:  isLarge ? 18 : 14.5,
+    headerFz:   isLarge ? 16 : 12.5,
+    headerIcz:  isLarge ? 17 : 14,
     pingFz:     isLarge ? 12 : 9.5,
     pingIcz:    isLarge ? 12 : 9.5,
     pingPad:    isLarge ? [4, 8] : [3, 6],
     rowFz:      isLarge ? 14 : 10.5,
     rowIcz:     isLarge ? 16 : 12,
     labelWidth: isLarge ? 100 : 72,
-    rowGap:     isLarge ? 8 : 5,      // 行内图标与标签的间距
-    listGap:    isLarge ? 10 : 2,     // 列表行与行之间的间距
+    rowGap:     isLarge ? 8 : 5,      
+    listGap:    isLarge ? 10 : 2,     
     spacerTop:  isLarge ? 20 : 8,
     footerFz:   isLarge ? 12 : 9
   };
@@ -149,7 +150,6 @@ export default async function(ctx) {
     ]
   });
 
-  // 大屏下显示底色面板卡片，中屏下直接用作扁平列表（最大程度省出垂直空间）
   const listWrapperConfig = isLarge 
     ? { padding: [16, 20], backgroundColor: C.panel, borderRadius: 12 }
     : {};
@@ -160,12 +160,12 @@ export default async function(ctx) {
     backgroundColor: C.bg,
     padding: layout.padding,
     children: [
-      // 🌟 第一行标题：重制 NetworkInfo 顶部布局 + 全彩延迟数字
+      // 🌟 第一行标题：遵循 ai-media-check 灰色统一风格 (C.dim + bold)
       {
         type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
         children: [
           { type: 'image', src: `sf-symbol:${netIcon}`, color: C.accent, width: layout.headerIcz, height: layout.headerIcz },
-          { type: 'text', text: `${pubIsp} · ${netName}`, font: { size: layout.headerFz, weight: 'heavy' }, textColor: C.text, maxLines: 1, minScale: 0.7, flex: 1 },
+          { type: 'text', text: `${pubIsp} · ${netName}`, font: { size: layout.headerFz, weight: 'bold' }, textColor: C.dim, maxLines: 1, minScale: 0.7, flex: 1 },
           {
             type: 'stack', direction: 'row', alignItems: 'center', gap: 4, padding: layout.pingPad, borderRadius: 6, backgroundColor: C.chip,
             children: [
