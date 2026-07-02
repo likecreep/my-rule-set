@@ -1,9 +1,9 @@
 /**
- * 🌐 Egern 全能网络信息与 IP 纯净度看板 (弹性瀑布流版)
- * 🎨 完全对齐 ai-media-check 的组件间距、动态留白与字号规范
+ * 🌐 Egern 全能网络信息与 IP 纯净度看板 (高精度测速版)
+ * 🎨 对齐 ai-media-check 间距与字号 / 同步阻塞精准测速
  */
 export default async function(ctx) {
-  // ── 1. 动态侦测小组件尺寸 (基于官方 ctx.widgetFamily 规范) ──
+  // ── 1. 动态侦测小组件尺寸 ──
   const family = String(ctx.widgetFamily || '').toLowerCase();
   const isLarge = family === 'systemlarge' || family === 'systemextralarge';
 
@@ -23,20 +23,15 @@ export default async function(ctx) {
 
   // ── 3. 严格对标 ai-media-check 尺寸体系 ──
   const layout = {
-    // 外边距对标 ai-media-check[cite: 5]
     padding:    isLarge ? [10, 12, 10, 12] : [12, 12, 12, 12], 
-    // 标题区对标 "NETWORK MONITOR" 10px[cite: 5]
     headerFz:   isLarge ? 12 : 10,
-    headerIcz:  isLarge ? 17 : 15, // 地球图标 15px[cite: 5]
+    headerIcz:  isLarge ? 17 : 15,
     timeFz:     isLarge ? 12 : 10,
-    // 测速区对标 "全部可用" 11px[cite: 5]
     delayFz:    isLarge ? 13 : 11,
     delayIcz:   isLarge ? 13 : 11,
-    // 数据行对标 Lan 脚本 11px
     rowFz:      isLarge ? 13 : 11,    
     rowIcz:     isLarge ? 15 : 13,    
     rowGap:     6,                    
-    // 灰色面板内边距对标 ai-media-check[cite: 5]
     groupPad:   isLarge ? [8, 10] : [6, 8]
   };
 
@@ -58,16 +53,29 @@ export default async function(ctx) {
   const localIp = d.ipv4?.address || "获取失败";
   const gateway = d.ipv4?.gateway || "获取失败";
 
-  // ── 5. 多轨数据并发请求 (3500ms 超时防假死) ──
+  // ── 5. 同步阻塞式网络测速 (避开并发请求造成的异步堆栈等待) ──
+  let domesticPing = 0;
+  try {
+    const s1 = Date.now();
+    await ctx.http.get('http://wifi.vivo.com.cn/generate_204', { method: 'HEAD', timeout: 2000 });
+    domesticPing = Date.now() - s1;
+  } catch (e) {}
+
+  let foreignPing = 0;
+  try {
+    const s2 = Date.now();
+    await ctx.http.get('http://1.1.1.1/generate_204', { method: 'HEAD', timeout: 2000 });
+    foreignPing = Date.now() - s2;
+  } catch (e) {}
+
+  // ── 6. 获取节点 IP 与纯净度数据 ──
   const TIMEOUT_MS = 3500;
   const httpGetJson = async (url) => {
     try {
-      const start = Date.now();
       const res = await ctx.http.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: TIMEOUT_MS });
-      const text = await res.text();
-      return { data: JSON.parse(text), ping: Date.now() - start };
+      return JSON.parse(await res.text());
     } catch (e) {
-      return { data: null, ping: 0 };
+      return null;
     }
   };
 
@@ -76,10 +84,9 @@ export default async function(ctx) {
     httpGetJson('https://my.ippure.com/v1/info')
   ]);
 
-  // ── 6. 解析直连公网与位置数据 ──
+  // ── 7. 解析直连公网与位置数据 ──
   let pubIp = "获取失败", pubLoc = "未知位置", pubIsp = "未知运营商";
-  let domesticPing = directRes.ping;
-
+  
   const fmtISP = (isp) => {
     if (!isp) return "未知";
     const s = String(isp).toLowerCase();
@@ -90,8 +97,8 @@ export default async function(ctx) {
     return isp; 
   };
 
-  if (directRes.data && directRes.data.data) {
-    const body = directRes.data.data;
+  if (directRes && directRes.data) {
+    const body = directRes.data;
     pubIp = body.ip || "获取失败";
     const locArr = body.location || [];
     pubIsp = fmtISP(locArr[4] || locArr[3]);
@@ -102,13 +109,12 @@ export default async function(ctx) {
     pubLoc = pubLocStr ? `${pubFlag} ${pubLocStr}` : `${pubFlag} 中国`;
   }
 
-  // ── 7. 解析代理落地与纯净度数据 ──
+  // ── 8. 解析代理外网与纯净度数据 ──
   let proxyIp = "获取失败", proxyLoc = "未知位置", proxyIsp = "未知", nativeText = "未知", riskTxt = "获取失败";
   let riskCol = C.dim, riskIc = "questionmark.shield.fill";
-  let foreignPing = proxyRes.ping;
 
-  if (proxyRes.data) {
-    const p = proxyRes.data;
+  if (proxyRes) {
+    const p = proxyRes;
     proxyIp = p.ip || "获取失败";
     proxyIsp = p.asn ? `AS${p.asn} ${p.asOrganization || ""}`.trim() : "未知";
     
@@ -128,9 +134,8 @@ export default async function(ctx) {
     }
   }
 
-  // ── 8. 格式化输出与颜色构造 ──
+  // ── 9. 格式化输出与颜色构造 ──
   const now = new Date();
-  // 严格对齐 ai-media-check 的 HH:mm 等宽时间显示[cite: 5]
   const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
   const getPingColor = (ping) => {
@@ -142,7 +147,6 @@ export default async function(ctx) {
   const domColor = getPingColor(domesticPing);
   const forColor = getPingColor(foreignPing);
 
-  // 极致原生行排版 (无多余容器嵌套，完美左靠齐和右靠齐)
   const Row = (ic, icColor, label, val, valCol) => ({
     type: 'stack', direction: 'row', alignItems: 'center', gap: layout.rowGap,
     children: [
@@ -155,15 +159,14 @@ export default async function(ctx) {
     ]
   });
 
-  // ── 9. 最终组件渲染输出 ──
+  // ── 10. 最终组件渲染输出 ──
   return {
     type: 'widget',
     backgroundColor: C.bg,
     padding: layout.padding,
-    // 根节点强制应用 ai-media-check 的 gap: 8，确保所有主要模块间距精确[cite: 5]
     gap: 8, 
     children: [
-      // 🌟 第 1 行：左侧运营商/网络名 (bold, 10px)，右侧时间 (monospaced, 10px)[cite: 5]
+      // 🌟 第 1 行：左侧运营商/网络名 (bold)，右侧时间含秒数 (monospaced)
       {
         type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
         children: [
@@ -174,7 +177,7 @@ export default async function(ctx) {
         ]
       },
 
-      // 🌟 第 2 行：测速延迟独占一行，右侧对齐，字体对齐 "全部可用" 11px Semibold[cite: 5]
+      // 🌟 第 2 行：测速延迟独占一行，右侧对齐，字体对齐
       {
         type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
         children: [
@@ -187,11 +190,11 @@ export default async function(ctx) {
         ]
       },
 
-      // 🌟 主体内容：包裹在垂直 flex 容器内，继承 gap: 8[cite: 5]
+      // 🌟 主体内容：包裹在垂直 flex 容器内，自动撑满剩余空间
       {
         type: 'stack', direction: 'column', flex: 1, gap: 8,
         children: [
-          // 第 1 组：本地与公网网络 (内部利用 spacer 动态弹簧式拉开间距)
+          // 第 1 组：本地与公网网络
           {
             type: 'stack', direction: 'column', flex: 1, padding: layout.groupPad, backgroundColor: C.panel, borderRadius: 8,
             children: [
@@ -204,11 +207,11 @@ export default async function(ctx) {
               Row("wifi.router.fill", C.accent, "路由网关", gateway, C.text)
             ]
           },
-          // 第 2 组：落地网络与纯净度 (内部利用 spacer 动态弹簧式拉开间距)
+          // 第 2 组：外网与纯净度 
           {
             type: 'stack', direction: 'column', flex: 1, padding: layout.groupPad, backgroundColor: C.panel, borderRadius: 8,
             children: [
-              Row("network", C.accent, "落地 IP", proxyIp, C.ok),
+              Row("network", C.accent, "外网 IP", proxyIp, C.ok),
               { type: 'spacer' },
               Row("location.fill", C.accent, "位置", proxyLoc, C.text), 
               { type: 'spacer' },
