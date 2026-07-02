@@ -1,6 +1,6 @@
 /**
  * Egern小组件: 网络服务解锁监测
- * 修复版：并发解耦测速逻辑，使用 204/favicon 探针获取真实 HTTPS 延迟
+ * 修正版：采用严格串行探测彻底杜绝代理隧道队头阻塞，获取最纯净 TLS 延迟
  */
 export default async function(ctx) {
   const MODE = 'auto'; // auto / large / compact
@@ -30,24 +30,9 @@ export default async function(ctx) {
     return code.replace(/./g, char => String.fromCodePoint(char.charCodeAt(0) + 127397));
   };
 
-  // ==== 核心修复：并发解耦测速逻辑 ====
-  async function safe(fn, pingUrl) {
+  async function safe(fn) {
     try {
-      const getPing = async () => {
-        if (!pingUrl) return 0;
-        const start = Date.now();
-        // 请求极小的图标或 204 无内容页面，仅测算网络通信往返+首字节时间
-        await ctx.http.get(pingUrl, { timeout: 3000 }).catch(() => null);
-        return Date.now() - start;
-      };
-
-      // 并发执行：业务逻辑与测速逻辑同时跑，互不干扰时间
-      const [res, pingMs] = await Promise.all([
-        fn(),
-        getPing()
-      ]);
-
-      return { ...res, ms: pingMs || 0 };
+      return await fn();
     } catch {
       return { code: 'ERR', region: null, ms: 0 };
     }
@@ -57,26 +42,26 @@ export default async function(ctx) {
     try { return await res.text(); } catch { return ''; }
   }
 
-  // ==== 业务探测逻辑 ====
-  async function fetchProxy() {
-    try {
-      const res = await ctx.http.get('http://ip-api.com/json/?lang=zh-CN', { timeout: 4000 });
-      if (!res || res.status !== 200) return { code: 'ERR', region: null };
-      const data = JSON.parse(await getBody(res));
-      return { code: data.countryCode ? 'OK' : 'ERR', region: data.countryCode || null };
-    } catch {
-      return { code: 'ERR', region: null };
-    }
+  // ==== 严格串行探针 ====
+  async function exactPing(url) {
+    const start = Date.now();
+    await ctx.http.get(url, { timeout: 2000 }).catch(() => null);
+    return Date.now() - start;
   }
 
+  // ==== 业务探测逻辑 ====
+
   async function checkYouTube() {
+    // 严格串行：先拿纯净延迟
+    const ms = await exactPing('https://www.youtube.com/generate_204');
+    
     const IOS_SAFARI_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1';
     const res = await ctx.http.get('https://www.youtube.com/premium', {
       timeout: 4000, 
       headers: { 'User-Agent': IOS_SAFARI_UA, 'Accept-Language': 'en-US,en;q=0.9', 'Cookie': 'SOCS=CAI' }
     }).catch(() => null);
     
-    if (!res || res.status !== 200) return { code: 'ERR', region: null };
+    if (!res || res.status !== 200) return { code: 'ERR', region: null, ms };
 
     let regionFromCookie = null;
     const responseHeaders = res.headers || {};
@@ -90,17 +75,24 @@ export default async function(ctx) {
     }
 
     const body = await res.text();
-    if (body.includes('Premium is not available in your country')) return { code: 'ERR', region: regionFromCookie };
+    if (body.includes('Premium is not available in your country')) return { code: 'ERR', region: regionFromCookie, ms };
     
     let finalRegion = regionFromCookie || 'UNKNOWN';
     const match = body.match(/"INNERTUBE_CONTEXT_GL"\s*:\s*"([^"]+)"/i)
     if (match && match[1]) finalRegion = match[1].toUpperCase();
-    return { code: 'OK', region: finalRegion };
+    
+    return { code: 'OK', region: finalRegion, ms };
   }
 
   async function checkNetflix() {
+    // 严格串行：先拿纯净延迟
+    const ms = await exactPing('https://www.netflix.com/generate_204');
+    
     const innerCheck = async (filmId) => {
-      const res = await ctx.http.get('https://www.netflix.com/title/' + filmId, { timeout: 4000, headers: commonHeaders, followRedirect: false }).catch(() => null);
+      const res = await ctx.http.get('https://www.netflix.com/title/' + filmId, {
+        timeout: 4000, headers: commonHeaders, followRedirect: false
+      }).catch(() => null);
+      
       if (!res) return { status: 'Error' };
       if (res.status === 403) return { status: 'Not Available' };
       if (res.status === 404) return { status: 'Not Found' };
@@ -111,7 +103,9 @@ export default async function(ctx) {
         const url = headers['x-originating-url'] || headers['X-Originating-Url'];
         if (url) {
           const parts = url.split('/');
-          if (parts.length > 3 && parts[3].split('-')[0].toUpperCase() !== 'TITLE') region = parts[3].split('-')[0].toUpperCase();
+          if (parts.length > 3 && parts[3].split('-')[0].toUpperCase() !== 'TITLE') {
+            region = parts[3].split('-')[0].toUpperCase();
+          }
         }
         return { status: 'OK', region: region };
       }
@@ -119,30 +113,41 @@ export default async function(ctx) {
     };
 
     const check1 = await innerCheck(81280792);
-    if (check1.status === 'OK') return { code: 'OK', region: check1.region, suffix: '(全)' };
+    
+    if (check1.status === 'OK') return { code: 'OK', region: check1.region, suffix: '(全)', ms };
     if (check1.status === 'Not Found') {
       const check2 = await innerCheck(80018499);
-      if (check2.status === 'OK') return { code: 'OK', region: check2.region, suffix: '(自)' };
+      if (check2.status === 'OK') return { code: 'OK', region: check2.region, suffix: '(自)', ms };
     }
-    return { code: 'ERR', region: null };
+    
+    return { code: 'ERR', region: null, ms };
   }
 
   async function checkDisney() {
+    // 严格串行：先拿纯净延迟
+    const ms = await exactPing('https://www.disneyplus.com/generate_204');
     try {
       const gqlOpts = {
         timeout: 5000,
         headers: {
-          'Accept-Language': 'en', 'Authorization': 'ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84',
-          'Content-Type': 'application/json', 'User-Agent': BASE_UA
+          'Accept-Language': 'en',
+          'Authorization': 'ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84',
+          'Content-Type': 'application/json',
+          'User-Agent': BASE_UA
         },
         body: JSON.stringify({
           query: 'mutation registerDevice($input: RegisterDeviceInput!) { registerDevice(registerDevice: $input) { grant { grantType assertion } } }',
-          variables: { input: { applicationRuntime: 'chrome', attributes: { browserName: 'chrome', browserVersion: '94.0.4606', manufacturer: 'apple', model: null, operatingSystem: 'macintosh', operatingSystemVersion: '10.15.7', osDeviceIds: [] }, deviceFamily: 'browser', deviceLanguage: 'en', deviceProfile: 'macosx' } }
+          variables: {
+            input: {
+              applicationRuntime: 'chrome', attributes: { browserName: 'chrome', browserVersion: '94.0.4606', manufacturer: 'apple', model: null, operatingSystem: 'macintosh', operatingSystemVersion: '10.15.7', osDeviceIds: [] },
+              deviceFamily: 'browser', deviceLanguage: 'en', deviceProfile: 'macosx'
+            }
+          }
         })
       };
       
       const gqlRes = await ctx.http.post('https://disney.api.edge.bamgrid.com/graph/v1/device/graphql', gqlOpts).catch(() => null);
-      if (!gqlRes || gqlRes.status !== 200) return { code: 'ERR', region: null };
+      if (!gqlRes || gqlRes.status !== 200) return { code: 'ERR', region: null, ms };
 
       const data = JSON.parse(await getBody(gqlRes));
       if (!data?.errors && data?.extensions?.sdk) {
@@ -150,105 +155,142 @@ export default async function(ctx) {
         const inSupportedLocation = sdk.session?.inSupportedLocation;
         let region = sdk.session?.location?.countryCode ? sdk.session.location.countryCode.toUpperCase() : null;
         
-        if (inSupportedLocation === false || String(inSupportedLocation) === 'false') return { code: 'OK', region: region, suffix: '(即将)' };
-        else if (region) return { code: 'OK', region: region };
+        if (inSupportedLocation === false || String(inSupportedLocation) === 'false') {
+          return { code: 'OK', region: region, suffix: '(即将)', ms };
+        } else if (region) {
+          return { code: 'OK', region: region, ms };
+        }
       }
-      return { code: 'ERR', region: null };
+      return { code: 'ERR', region: null, ms };
     } catch (e) {
-      return { code: 'ERR', region: null };
+      return { code: 'ERR', region: null, ms };
     }
   }
 
   async function checkChatGPT() {
     let region = null;
+    let ms = 0;
+    
+    // CF Trace 本身就是极轻量接口，直接利用它作为延迟标准，不发额外探针
+    const start = Date.now();
     const trace = await ctx.http.get('https://chatgpt.com/cdn-cgi/trace', { timeout: 3000 }).catch(() => null);
+    ms = Date.now() - start;
+
     if (trace && trace.status === 200) {
       const body = await getBody(trace);
       const match = body.match(/loc=([A-Z]{2})/);
       if (match) region = match[1].toUpperCase();
     }
-    const resWeb = await ctx.http.get('https://api.openai.com/compliance/cookie_requirements', { timeout: 4000, headers: { ...commonHeaders, 'authority': 'api.openai.com', 'authorization': 'Bearer null' } }).catch(() => null);
-    const resApp = await ctx.http.get('https://ios.chat.openai.com/', { timeout: 4000, headers: { ...commonHeaders, 'authority': 'ios.chat.openai.com' } }).catch(() => null);
 
-    let webBlocked = true; let appBlocked = true;
+    const resWeb = await ctx.http.get('https://api.openai.com/compliance/cookie_requirements', {
+      timeout: 4000,
+      headers: { ...commonHeaders, 'authority': 'api.openai.com', 'authorization': 'Bearer null' }
+    }).catch(() => null);
+
+    const resApp = await ctx.http.get('https://ios.chat.openai.com/', {
+      timeout: 4000,
+      headers: { ...commonHeaders, 'authority': 'ios.chat.openai.com' }
+    }).catch(() => null);
+
+    let webBlocked = true;
+    let appBlocked = true;
+
     if (resWeb) { if (!(await getBody(resWeb)).toLowerCase().includes('unsupported_country')) webBlocked = false; }
     if (resApp) { if (!(await getBody(resApp)).toLowerCase().includes('vpn')) appBlocked = false; }
 
-    if (!webBlocked && !appBlocked) return { code: 'OK', region: region }; 
-    if (!webBlocked && appBlocked) return { code: 'OK', region: region, suffix: '(Web)' };
-    if (webBlocked && !appBlocked) return { code: 'OK', region: region, suffix: '(App)' }; 
-    return { code: 'ERR', region: region };
+    if (!webBlocked && !appBlocked) return { code: 'OK', region: region, ms }; 
+    if (!webBlocked && appBlocked) return { code: 'OK', region: region, suffix: '(Web)', ms };
+    if (webBlocked && !appBlocked) return { code: 'OK', region: region, suffix: '(App)', ms }; 
+    
+    return { code: 'ERR', region: region, ms };
   }
 
   async function checkClaude() {
     let region = null;
+    let ms = 0;
+    
+    // 同上，直接利用 CF Trace
+    const start = Date.now();
     const trace = await ctx.http.get('https://claude.ai/cdn-cgi/trace', { timeout: 3000 }).catch(() => null);
+    ms = Date.now() - start;
+
     if (trace && trace.status === 200) {
       const match = (await getBody(trace)).match(/loc=([A-Z]{2})/);
       if (match) region = match[1].toUpperCase();
     }
-    const res = await ctx.http.get('https://claude.ai/', { timeout: 4000, headers: commonHeaders, followRedirect: false }).catch(() => null);
-    if (!res) return { code: 'ERR', region: region };
+
+    const res = await ctx.http.get('https://claude.ai/', { 
+        timeout: 4000, headers: commonHeaders, followRedirect: false
+    }).catch(() => null);
+
+    if (!res) return { code: 'ERR', region: region, ms };
 
     if (res.status >= 300 && res.status < 400) {
         const loc = res.headers['Location'] || res.headers['location'] || '';
-        if (loc.includes('app-unavailable-in-region')) return { code: 'ERR', region: region };
+        if (loc.includes('app-unavailable-in-region')) return { code: 'ERR', region: region, ms };
     } else if (res.status === 200) {
-        if ((await getBody(res)).includes('app-unavailable-in-region')) return { code: 'ERR', region: region };
+        if ((await getBody(res)).includes('app-unavailable-in-region')) return { code: 'ERR', region: region, ms };
     }
-    return { code: 'OK', region: region };
+    return { code: 'OK', region: region, ms };
   }
 
   async function checkGemini() {
-    const res = await ctx.http.get('https://gemini.google.com', { timeout: 5000, headers: commonHeaders, followRedirect: true }).catch(() => null);
-    if (!res) return { code: 'ERR', region: null };
+    // 严格串行：先拿纯净延迟
+    const ms = await exactPing('https://gemini.google.com/generate_204');
+    const res = await ctx.http.get('https://gemini.google.com', {
+      timeout: 5000, headers: commonHeaders, followRedirect: true
+    }).catch(() => null);
+    
+    if (!res) return { code: 'ERR', region: null, ms };
+    
     const body = await getBody(res);
-    if (!body.includes('45631641,null,true')) return { code: 'ERR', region: null };
+    if (!body.includes('45631641,null,true')) return { code: 'ERR', region: null, ms };
 
     let region = null;
     const match = body.match(/,2,1,200,"([A-Z]{2,3})"/);
     if (match && match[1]) region = match[1];
-    return { code: 'OK', region: region || 'OK' };
+    
+    return { code: 'OK', region: region || 'OK', ms };
   }
 
-  // ==== 绑定探针 URL，分离测速耗时 ====
+  // 服务间互相并发，服务内逻辑串行
   const checks = [
-    safe(fetchProxy, 'http://cp.cloudflare.com/generate_204'), 
-    safe(checkYouTube, 'https://www.youtube.com/generate_204'), 
-    safe(checkNetflix, 'https://www.netflix.com/favicon.ico'), 
-    safe(checkDisney, 'https://www.disneyplus.com/favicon.ico'), 
-    safe(checkChatGPT, 'https://chatgpt.com/favicon.ico'), 
-    safe(checkClaude, 'https://claude.ai/favicon.ico'), 
-    safe(checkGemini, 'https://gemini.google.com/favicon.ico')
+    safe(checkYouTube), safe(checkNetflix), safe(checkDisney), 
+    safe(checkChatGPT), safe(checkClaude), safe(checkGemini)
   ];
 
   const results = await Promise.all(checks);
-  const [proxy, youtube, netflix, disney, chatgpt, claude, gemini] = results;
+  const [youtube, netflix, disney, chatgpt, claude, gemini] = results;
 
-  const resultInfo = (result, fallbackRegion) => {
+  const resultInfo = (result) => {
     const available = result && result.code !== 'ERR';
     let region = '--';
     let ms = result?.ms || 0;
     
     if (available) {
-      let base = result.region || fallbackRegion || '--';
+      let base = result.region || 'US'; 
       let suffix = result.suffix || '';
       let emoji = getFlagEmoji(base);
-      region = (base === '--' && suffix) ? `${emoji} ${suffix}` : `${emoji} ${base}${suffix}`;
+      
+      if (base === 'UNKNOWN' || base === '--') {
+        region = suffix || 'OK';
+      } else {
+        region = `${emoji} ${base}${suffix}`;
+      }
     }
     return { available, region, ms };
   };
 
   const streaming = [
-    { name: 'YouTube', info: resultInfo(youtube, proxy.region) },
-    { name: 'Netflix', info: resultInfo(netflix, proxy.region) },
-    { name: 'Disney+', info: resultInfo(disney, proxy.region) }
+    { name: 'YouTube', info: resultInfo(youtube) },
+    { name: 'Netflix', info: resultInfo(netflix) },
+    { name: 'Disney+', info: resultInfo(disney) }
   ];
 
   const ai = [
-    { name: 'ChatGPT', info: resultInfo(chatgpt, proxy.region) }, 
-    { name: 'Claude', info: resultInfo(claude, proxy.region) },
-    { name: 'Gemini', info: resultInfo(gemini, proxy.region) }
+    { name: 'ChatGPT', info: resultInfo(chatgpt) }, 
+    { name: 'Claude', info: resultInfo(claude) },
+    { name: 'Gemini', info: resultInfo(gemini) }
   ];
 
   const allServices = [...streaming, ...ai];
@@ -258,36 +300,57 @@ export default async function(ctx) {
   const now = new Date();
   const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
+  // ==== UI 渲染组件 ====
   const Dot = available => ({
     type: 'stack', width: isCompact ? 6 : 9, height: isCompact ? 6 : 9, borderRadius: isCompact ? 3 : 4.5,
     backgroundColor: available ? C.ok : C.fail, children: []
   });
 
   const RegionChip = region => ({
-    type: 'stack', padding: isCompact ? [1.5, 4] : [2, 6], backgroundColor: C.chip, borderRadius: 4, alignItems: 'center',
-    children: [{ type: 'text', text: region || '--', font: { size: isCompact ? 8 : 10, weight: 'bold', design: 'monospaced' }, textColor: C.text, maxLines: 1 }]
+    type: 'stack',
+    padding: isCompact ? [1.5, 4] : [2, 6], 
+    backgroundColor: C.chip, borderRadius: 4, alignItems: 'center',
+    children: [
+      {
+        type: 'text', text: region || '--',
+        font: { size: isCompact ? 8 : 10, weight: 'bold', design: 'monospaced' },
+        textColor: C.text, maxLines: 1
+      }
+    ]
   });
 
   const ServiceRow = item => ({
     type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
     children: [
-      { type: 'text', text: item.name, font: { size: isCompact ? 10 : 12, weight: 'semibold' }, textColor: C.text, flex: 1, maxLines: 1 },
-      ...(item.info.available ? [{ type: 'text', text: `${item.info.ms}ms`, font: { size: isCompact ? 8 : 10, weight: 'medium', design: 'monospaced' }, textColor: C.dim, maxLines: 1 }] : []),
+      {
+        type: 'text', text: item.name,
+        font: { size: isCompact ? 10 : 12, weight: 'semibold' },
+        textColor: C.text, flex: 1, maxLines: 1
+      },
+      ...(item.info.available ? [{
+         type: 'text', text: `${item.info.ms}ms`,
+         font: { size: isCompact ? 8 : 10, weight: 'medium', design: 'monospaced' },
+         textColor: C.dim, maxLines: 1
+      }] : []),
       RegionChip(item.info.region),
       Dot(item.info.available)
     ]
   });
 
-  const Hairline = () => ({ type: 'stack', height: 1, backgroundColor: C.hairline });
+  const Hairline = () => ({
+    type: 'stack', height: 1, backgroundColor: C.hairline
+  });
 
   const Group = (label, items) => {
     const groupOk = items.filter(item => item.info.available).length;
     return {
-      type: 'stack', direction: 'column', flex: 1, gap: isCompact ? 4 : 6, padding: isCompact ? [6, 8] : [8, 10],
+      type: 'stack', direction: 'column', flex: 1,
+      gap: isCompact ? 4 : 6, padding: isCompact ? [6, 8] : [8, 10],
       backgroundColor: C.panel, borderRadius: 8,
       children: [
         {
-          type: 'stack', direction: 'row', alignItems: 'center', children: [
+          type: 'stack', direction: 'row', alignItems: 'center',
+          children: [
             { type: 'text', text: label, font: { size: isCompact ? 9 : 11, weight: 'bold' }, textColor: C.accent, maxLines: 1 },
             { type: 'spacer' },
             { type: 'text', text: `${groupOk}/${items.length}`, font: { size: isCompact ? 9 : 10, weight: 'semibold', design: 'monospaced' }, textColor: C.dim, maxLines: 1 }
@@ -299,11 +362,16 @@ export default async function(ctx) {
   };
 
   return {
-    type: 'widget', backgroundColor: C.bg, padding: isCompact ? [12, 12, 12, 12] : [10, 12, 10, 12], gap: 8,
+    type: 'widget',
+    backgroundColor: C.bg, 
+    padding: isCompact ? [12, 12, 12, 12] : [10, 12, 10, 12], gap: 8,
     children: [
       {
-        type: 'stack', direction: 'row', alignItems: 'center', children: [
-          { type: 'stack', direction: 'row', alignItems: 'center', gap: 6, children: [
+        type: 'stack', direction: 'row', alignItems: 'center',
+        children: [
+          {
+            type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
+            children: [
               { type: 'image', src: 'sf-symbol:globe', color: C.accent, width: 15, height: 15 },
               { type: 'text', text: 'NETWORK MONITOR', font: { size: 10, weight: 'bold' }, textColor: C.dim, maxLines: 1 }
             ]
@@ -313,15 +381,25 @@ export default async function(ctx) {
         ]
       },
       {
-        type: 'stack', direction: 'row', alignItems: 'center', gap: 8, children: [
+        type: 'stack', direction: 'row', alignItems: 'center', gap: 8,
+        children: [
           Dot(lockedCount === 0),
-          { type: 'text', text: `${okCount}/${allServices.length}`, font: { size: 24, weight: 'bold', design: 'monospaced' }, textColor: C.text, maxLines: 1 },
+          {
+            type: 'text', text: `${okCount}/${allServices.length}`,
+            font: { size: 24, weight: 'bold', design: 'monospaced' }, textColor: C.text, maxLines: 1
+          },
           { type: 'spacer' },
-          { type: 'text', text: lockedCount === 0 ? '全部可用' : `${lockedCount} 项不可用`, font: { size: 11, weight: 'semibold' }, textColor: lockedCount === 0 ? C.dim : C.fail, maxLines: 1 }
+          {
+            type: 'text', text: lockedCount === 0 ? '全部可用' : `${lockedCount} 项不可用`,
+            font: { size: 11, weight: 'semibold' }, textColor: lockedCount === 0 ? C.dim : C.fail, maxLines: 1
+          }
         ]
       },
       {
-        type: 'stack', direction: isCompact ? 'row' : 'column', gap: 8, flex: 1, children: [
+        type: 'stack',
+        direction: isCompact ? 'row' : 'column',
+        gap: 8, flex: 1,
+        children: [
           Group(isCompact ? '流媒体' : '流媒体解锁', streaming),
           Group(isCompact ? 'AI服务' : 'AI 服务检测', ai)
         ]
