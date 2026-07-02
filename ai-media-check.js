@@ -58,42 +58,54 @@ export default async function(ctx) {
       'Cookie': 'SOCS=CAI' // 强制绕过隐私拦截页
     };
     
+    // 发起请求 (使用 Egern API)
     const res = await ctx.http.get('https://www.youtube.com/premium', {
-      timeout: 4000, headers
+      timeout: 4000, 
+      headers: headers
     }).catch(() => null);
     
     if (!res || res.status !== 200) return { code: 'ERR', region: null };
 
     // ==========================================
-    // 1. 优先从 Cookie 中提取国家代码 (降维打击)
+    // 1. 优先从 Header Cookie 中精准提取国家代码
     // ==========================================
     let regionFromCookie = null;
     const responseHeaders = res.headers || {};
-    const setCookieHeader = responseHeaders['Set-Cookie'] || responseHeaders['set-cookie'] || '';
+    let setCookie = responseHeaders['Set-Cookie'] || responseHeaders['set-cookie'] || '';
     
-    const privacyMatch = setCookieHeader.match(/VISITOR_PRIVACY_METADATA=([^;]+)/);
+    // 兼容 Egern 的 Header 数组格式
+    if (Array.isArray(setCookie)) {
+      setCookie = setCookie.join('; ');
+    } else if (typeof setCookie !== 'string') {
+      setCookie = String(setCookie);
+    }
+    
+    const privacyMatch = setCookie.match(/VISITOR_PRIVACY_METADATA=([^;]+)/);
     if (privacyMatch) {
       try {
         const b64 = decodeURIComponent(privacyMatch[1]);
-        // 原生 atob 解码，直接截取第 3、4 位的明文 ASCII 字符
         const decoded = atob(b64);
         regionFromCookie = decoded.substring(2, 4).toUpperCase();
       } catch (e) {
-        // 解码异常则静默，交由后续 Body 正则兜底
+        // 解码异常静默，交由后续 Body 兜底
       }
     }
 
-    // 严格拦截送中节点
+    // 严格拦截送中节点 (Header 层阻断)
     if (regionFromCookie === 'CN') return { code: 'ERR', region: 'CN' };
 
+    // ==========================================
+    // 2. 正文特征与兜底分析
+    // ==========================================
     const body = await res.text();
     
-    // 2. 双重文本特征拦截
+    // 严格拦截送中节点 (Body 层阻断)
     if (body.includes('www.google.cn')) return { code: 'ERR', region: 'CN' }; 
     if (body.includes('Premium is not available in your country')) return { code: 'ERR', region: null };
     
-    // 3. 最终地区判定
     let finalRegion = regionFromCookie || 'UNKNOWN';
+    
+    // 如果 Header 没抓到，走正则兜底
     if (finalRegion === 'UNKNOWN') {
       const match = body.match(/"?INNERTUBE_CONTEXT_GL"?\s*:\s*"([^"]+)"/i) || 
                     body.match(/"?countryCode"?\s*:\s*"([^"]+)"/i) ||
@@ -105,7 +117,6 @@ export default async function(ctx) {
     
     return { code: 'OK', region: finalRegion };
   }
-
 
 
 
