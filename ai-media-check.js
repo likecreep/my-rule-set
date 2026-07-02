@@ -1,6 +1,6 @@
 /**
  * Egern小组件: 网络服务解锁监测
- * 终极安全版：全面引入 Range 截断请求 (Netflix / Disney+) 与原生 API 测速，获取主站最纯净延迟
+ * 终极完美版：采用 AASA (Apple App Site Association) 纯静态探针，获取主域名最纯净且绝对防封的极速延迟
  */
 export default async function(ctx) {
   const MODE = 'auto'; // auto / large / compact
@@ -18,6 +18,7 @@ export default async function(ctx) {
   };
 
   const BASE_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
+  const IOS_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1';
   const commonHeaders = { 'User-Agent': BASE_UA };
 
   const family = String(ctx.widgetFamily || ctx.family || ctx.widgetSize || '').toLowerCase();
@@ -42,20 +43,14 @@ export default async function(ctx) {
     try { return await res.text(); } catch { return ''; }
   }
 
-  // ==== 核心测速探针：支持 Range 截断 ====
-  async function exactPing(url, useRange = false) {
+  // ==== 核心测速探针 ====
+  async function exactPing(url) {
     const start = Date.now();
-    const headers = { 'User-Agent': BASE_UA, 'Accept': '*/*' };
-    
-    // HTTP 206 截断：只拿前 11 字节，防止下载整个主站 DOM，完美规避 WAF 并获取真实边缘节点延迟
-    if (useRange) {
-      headers['Range'] = 'bytes=0-10'; 
-    }
-
     await ctx.http.get(url, { 
       timeout: 2500, 
-      followRedirect: false,
-      headers: headers
+      followRedirect: false, // 严格阻断重定向
+      // 使用 iOS UA，完美伪装成苹果设备拉取 Universal Links 配置文件，免除一切 WAF 爬虫质疑
+      headers: { 'User-Agent': IOS_UA, 'Accept': 'application/json, text/plain, */*' } 
     }).catch(() => null);
     
     return Date.now() - start;
@@ -64,12 +59,12 @@ export default async function(ctx) {
   // ==== 业务探测逻辑 ====
 
   async function checkYouTube() {
+    // Google 系原生支持 204
     const ms = await exactPing('https://www.youtube.com/generate_204');
     
-    const IOS_SAFARI_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1';
     const res = await ctx.http.get('https://www.youtube.com/premium', {
       timeout: 4000, 
-      headers: { 'User-Agent': IOS_SAFARI_UA, 'Accept-Language': 'en-US,en;q=0.9', 'Cookie': 'SOCS=CAI' }
+      headers: { 'User-Agent': IOS_UA, 'Accept-Language': 'en-US,en;q=0.9', 'Cookie': 'SOCS=CAI' }
     }).catch(() => null);
     
     if (!res || res.status !== 200) return { code: 'ERR', region: null, ms };
@@ -96,8 +91,8 @@ export default async function(ctx) {
   }
 
   async function checkNetflix() {
-    // 启用 Range 截断法，测试 Netflix 主站边缘延迟
-    const ms = await exactPing('https://www.netflix.com/', true);
+    // 请求主站的 iOS 通用链接配置文件，体积通常<1KB，绝对防封，获取最真实的 CDN 边缘延迟
+    const ms = await exactPing('https://www.netflix.com/.well-known/apple-app-site-association');
     
     const innerCheck = async (filmId) => {
       const res = await ctx.http.get('https://www.netflix.com/title/' + filmId, {
@@ -135,8 +130,8 @@ export default async function(ctx) {
   }
 
   async function checkDisney() {
-    // 启用 Range 截断法，直接测算 disneyplus.com 主域名的真实 CDN 边缘延迟
-    const ms = await exactPing('https://www.disneyplus.com/', true);
+    // 请求 Disney+ 主站的 iOS 通用链接配置文件，获取 CDN 边缘延迟
+    const ms = await exactPing('https://www.disneyplus.com/.well-known/apple-app-site-association');
     
     try {
       const gqlOpts = {
@@ -183,7 +178,7 @@ export default async function(ctx) {
     let region = null;
     let ms = 0;
     
-    // CF Trace 为 30 字节极轻量纯文本探针
+    // CF Trace 探针
     const start = Date.now();
     const trace = await ctx.http.get('https://chatgpt.com/cdn-cgi/trace', { timeout: 3000, followRedirect: false }).catch(() => null);
     ms = Date.now() - start;
