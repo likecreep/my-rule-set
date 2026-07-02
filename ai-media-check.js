@@ -50,40 +50,62 @@ export default async function(ctx) {
   }
 
   async function checkYouTube() {
-    // 强制使用英文 Header，避免小语种页面布局变动影响检测
-    const headers = { ...commonHeaders, 'Accept-Language': 'en-US,en;q=0.9' };
+    const IOS_SAFARI_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1';
+    
+    const headers = { 
+      'User-Agent': IOS_SAFARI_UA,
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Cookie': 'SOCS=CAI' // 强制绕过隐私拦截页
+    };
+    
     const res = await ctx.http.get('https://www.youtube.com/premium', {
       timeout: 4000, headers
     }).catch(() => null);
     
     if (!res || res.status !== 200) return { code: 'ERR', region: null };
-    const body = await getBody(res);
-    
-    // 1. 严格拦截送中节点 (CN)，直接返回错误并显式标注 CN
-    if (body.includes('www.google.cn')) {
-      return { code: 'ERR', region: 'CN' }; 
-    }
-    
-    // 2. 检测未解锁特征
-    if (body.includes('Premium is not available in your country')) {
-      return { code: 'ERR', region: null };
-    }
-    
-    // 3. 提取地区代码 (已放宽正则限制，完美复刻 Bash 的 [^"]+ 逻辑)
-    let region = 'UNKNOWN';
-    
-    // 按优先级依次尝试匹配 INNERTUBE_CONTEXT_GL, "GL", "countryCode" 和无引号 GL
-    const match = body.match(/"?INNERTUBE_CONTEXT_GL"?\s*:\s*"([^"]+)"/i) || 
-              body.match(/"?countryCode"?\s*:\s*"([^"]+)"/i) ||
-              body.match(/"?GL"?\s*:\s*"([^"]+)"/i);
 
-                  
-    if (match && match[1]) {
-      region = match[1].toUpperCase();
+    // ==========================================
+    // 1. 优先从 Cookie 中提取国家代码 (降维打击)
+    // ==========================================
+    let regionFromCookie = null;
+    const responseHeaders = res.headers || {};
+    const setCookieHeader = responseHeaders['Set-Cookie'] || responseHeaders['set-cookie'] || '';
+    
+    const privacyMatch = setCookieHeader.match(/VISITOR_PRIVACY_METADATA=([^;]+)/);
+    if (privacyMatch) {
+      try {
+        const b64 = decodeURIComponent(privacyMatch[1]);
+        // 原生 atob 解码，直接截取第 3、4 位的明文 ASCII 字符
+        const decoded = atob(b64);
+        regionFromCookie = decoded.substring(2, 4).toUpperCase();
+      } catch (e) {
+        // 解码异常则静默，交由后续 Body 正则兜底
+      }
+    }
+
+    // 严格拦截送中节点
+    if (regionFromCookie === 'CN') return { code: 'ERR', region: 'CN' };
+
+    const body = await res.text();
+    
+    // 2. 双重文本特征拦截
+    if (body.includes('www.google.cn')) return { code: 'ERR', region: 'CN' }; 
+    if (body.includes('Premium is not available in your country')) return { code: 'ERR', region: null };
+    
+    // 3. 最终地区判定
+    let finalRegion = regionFromCookie || 'UNKNOWN';
+    if (finalRegion === 'UNKNOWN') {
+      const match = body.match(/"?INNERTUBE_CONTEXT_GL"?\s*:\s*"([^"]+)"/i) || 
+                    body.match(/"?countryCode"?\s*:\s*"([^"]+)"/i) ||
+                    body.match(/"?GL"?\s*:\s*"([^"]+)"/i);
+      if (match && match[1]) {
+        finalRegion = match[1].toUpperCase();
+      }
     }
     
-    return { code: 'OK', region: region };
+    return { code: 'OK', region: finalRegion };
   }
+
 
 
 
