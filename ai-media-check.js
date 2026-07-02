@@ -1,6 +1,6 @@
 /**
  * Egern小组件: 网络服务解锁监测
- * 修正版：采用严格串行探测彻底杜绝代理隧道队头阻塞，获取最纯净 TLS 延迟
+ * 终极修正版：流媒体测速探针优化 (204 / robots.txt 分流)，彻底阻断代理队列阻塞与 302 陷阱
  */
 export default async function(ctx) {
   const MODE = 'auto'; // auto / large / compact
@@ -42,17 +42,21 @@ export default async function(ctx) {
     try { return await res.text(); } catch { return ''; }
   }
 
-  // ==== 严格串行探针 ====
+  // ==== 核心修复：纯净的单体探针测速 ====
   async function exactPing(url) {
     const start = Date.now();
-    await ctx.http.get(url, { timeout: 2000 }).catch(() => null);
+    await ctx.http.get(url, { 
+      timeout: 2500, 
+      followRedirect: false, // 严格阻断重定向
+      headers: { 'User-Agent': BASE_UA, 'Accept': '*/*' } 
+    }).catch(() => null);
     return Date.now() - start;
   }
 
   // ==== 业务探测逻辑 ====
 
   async function checkYouTube() {
-    // 严格串行：先拿纯净延迟
+    // Google 系原生支持 204 无内容响应
     const ms = await exactPing('https://www.youtube.com/generate_204');
     
     const IOS_SAFARI_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1';
@@ -85,8 +89,8 @@ export default async function(ctx) {
   }
 
   async function checkNetflix() {
-    // 严格串行：先拿纯净延迟
-    const ms = await exactPing('https://www.netflix.com/generate_204');
+    // Netflix 边缘 CDN 探针 (robots.txt 为百字节级纯文本，绝对无路由解析负担)
+    const ms = await exactPing('https://www.netflix.com/robots.txt');
     
     const innerCheck = async (filmId) => {
       const res = await ctx.http.get('https://www.netflix.com/title/' + filmId, {
@@ -124,8 +128,9 @@ export default async function(ctx) {
   }
 
   async function checkDisney() {
-    // 严格串行：先拿纯净延迟
-    const ms = await exactPing('https://www.disneyplus.com/generate_204');
+    // Disney 边缘 CDN 探针
+    const ms = await exactPing('https://www.disneyplus.com/robots.txt');
+    
     try {
       const gqlOpts = {
         timeout: 5000,
@@ -171,9 +176,9 @@ export default async function(ctx) {
     let region = null;
     let ms = 0;
     
-    // CF Trace 本身就是极轻量接口，直接利用它作为延迟标准，不发额外探针
+    // CF Trace 探针 (30字节响应，直接获取代理隧道与 CF 边缘节点的延迟)
     const start = Date.now();
-    const trace = await ctx.http.get('https://chatgpt.com/cdn-cgi/trace', { timeout: 3000 }).catch(() => null);
+    const trace = await ctx.http.get('https://chatgpt.com/cdn-cgi/trace', { timeout: 3000, followRedirect: false }).catch(() => null);
     ms = Date.now() - start;
 
     if (trace && trace.status === 200) {
@@ -209,9 +214,9 @@ export default async function(ctx) {
     let region = null;
     let ms = 0;
     
-    // 同上，直接利用 CF Trace
+    // CF Trace 探针
     const start = Date.now();
-    const trace = await ctx.http.get('https://claude.ai/cdn-cgi/trace', { timeout: 3000 }).catch(() => null);
+    const trace = await ctx.http.get('https://claude.ai/cdn-cgi/trace', { timeout: 3000, followRedirect: false }).catch(() => null);
     ms = Date.now() - start;
 
     if (trace && trace.status === 200) {
@@ -235,8 +240,9 @@ export default async function(ctx) {
   }
 
   async function checkGemini() {
-    // 严格串行：先拿纯净延迟
+    // Google 系原生支持 204
     const ms = await exactPing('https://gemini.google.com/generate_204');
+    
     const res = await ctx.http.get('https://gemini.google.com', {
       timeout: 5000, headers: commonHeaders, followRedirect: true
     }).catch(() => null);
@@ -253,7 +259,6 @@ export default async function(ctx) {
     return { code: 'OK', region: region || 'OK', ms };
   }
 
-  // 服务间互相并发，服务内逻辑串行
   const checks = [
     safe(checkYouTube), safe(checkNetflix), safe(checkDisney), 
     safe(checkChatGPT), safe(checkClaude), safe(checkGemini)
@@ -300,7 +305,6 @@ export default async function(ctx) {
   const now = new Date();
   const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-  // ==== UI 渲染组件 ====
   const Dot = available => ({
     type: 'stack', width: isCompact ? 6 : 9, height: isCompact ? 6 : 9, borderRadius: isCompact ? 3 : 4.5,
     backgroundColor: available ? C.ok : C.fail, children: []
