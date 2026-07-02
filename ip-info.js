@@ -1,9 +1,9 @@
 /**
- * 🌐 Egern 全能网络信息与 IP 纯净度看板 (完美终极版)
- * 🎨 深度融合 ai-media-check 色彩、双块卡片分组与 Lan 级精准对齐
+ * 🌐 Egern 全能网络信息与 IP 纯净度看板 (像素级对齐优化版)
+ * 🎨 完美复刻 ai-media-check 间距与色彩 / Lan 级排版对齐
  */
 export default async function(ctx) {
-  // ── 1. 动态侦测小组件尺寸 (基于官方 ctx.widgetFamily 规范) ──
+  // ── 1. 动态侦测小组件尺寸 ──
   const family = String(ctx.widgetFamily || '').toLowerCase();
   const isLarge = family === 'systemlarge' || family === 'systemextralarge';
 
@@ -21,21 +21,19 @@ export default async function(ctx) {
     fail:     { light: '#D64545', dark: '#FF626A' }  
   };
 
-  // ── 3. 动态响应式布局参数 (边距对标 ai-media-check，字号对标 Lan) ──
+  // ── 3. 严格对标 ai-media-check 与 Lan 的弹性布局参数 ──
   const layout = {
-    padding:    isLarge ? [16, 20, 16, 20] : [12, 12, 12, 12],
-    headerFz:   isLarge ? 16 : 13,
-    headerIcz:  isLarge ? 17 : 14,
-    pingFz:     isLarge ? 12 : 9.5,
-    pingIcz:    isLarge ? 12 : 9.5,
-    pingPad:    isLarge ? [4, 8] : [3, 6],
-    rowFz:      isLarge ? 14 : 11,    // 对标 Lan 脚本，标题与数值的字号皆为 11
-    rowIcz:     isLarge ? 16 : 13,    // 图标大小对应为 13
-    rowGap:     isLarge ? 8 : 6,      // 行内图标与文字间距
-    itemGap:    isLarge ? 6 : 4,      // 组内上下行间距
-    groupPad:   isLarge ? [10, 14] : [6, 10], // Panel 卡片内部边距
-    groupGap:   isLarge ? 10 : 6,     // 两个卡片组块之间的间距
-    spacerTop:  isLarge ? 12 : 8,
+    padding:    isLarge ? [10, 12, 10, 12] : [12, 12, 12, 12], // 完全对齐 ai-media-check 外边距
+    headerFz:   isLarge ? 14 : 12,
+    headerIcz:  isLarge ? 15 : 14,
+    pingFz:     isLarge ? 11 : 9.5,
+    pingIcz:    isLarge ? 11 : 9.5,
+    pingPad:    isLarge ? [3, 6] : [2, 5],
+    rowFz:      isLarge ? 13 : 11,    // 对齐 Lan 脚本的 11px 标准字号
+    rowIcz:     isLarge ? 15 : 13,    // 对齐 Lan 脚本的 13px 图标
+    rowGap:     6,                    // 行内图标与文字间距，对标 Lan
+    itemGap:    isLarge ? 6 : 4,      // 组内上下行间距，对标 ai-media-check
+    groupPad:   isLarge ? [8, 10] : [6, 8], // 灰色卡片内部边距，对标 ai-media-check
     footerFz:   isLarge ? 11 : 9
   };
 
@@ -96,7 +94,7 @@ export default async function(ctx) {
     pubIsp = fmtISP(locArr[4] || locArr[3]);
     
     let pubLocStr = `${locArr[1] || ""} ${locArr[2] || ""}`.trim();
-    let pubFlag = "🇨🇳"; // 本地绝大多数情况为中国，特殊情况匹配地球
+    let pubFlag = "🇨🇳"; 
     if (locArr[0] && locArr[0] !== "中国") pubFlag = "🌐"; 
     pubLoc = pubLocStr ? `${pubFlag} ${pubLocStr}` : `${pubFlag} 中国`;
   }
@@ -140,14 +138,11 @@ export default async function(ctx) {
   const domColor = getPingColor(domesticPing);
   const forColor = getPingColor(foreignPing);
 
-  // 严格两端对齐行组件：固定图标宽度确保左对齐，Spacer 将数值顶到最右侧
+  // 极致原生行排版 (无多余容器嵌套，完美左靠齐和右靠齐)
   const Row = (ic, icColor, label, val, valCol) => ({
     type: 'stack', direction: 'row', alignItems: 'center', gap: layout.rowGap,
     children: [
-      // 固定宽度的盒子，确保即便 SF Symbols 比例不同，也绝对垂直左对齐
-      { type: 'stack', width: layout.rowIcz, alignItems: 'center', children: [
-          { type: 'image', src: `sf-symbol:${ic}`, color: icColor, width: layout.rowIcz, height: layout.rowIcz }
-      ]},
+      { type: 'image', src: `sf-symbol:${ic}`, color: icColor, width: layout.rowIcz, height: layout.rowIcz },
       { type: 'text', text: label, font: { size: layout.rowFz }, textColor: C.dim },
       { type: 'spacer' },
       { type: 'text', text: val, font: { size: layout.rowFz, weight: 'bold', family: 'Menlo' }, textColor: valCol, maxLines: 1, minScale: 0.6 }
@@ -159,8 +154,9 @@ export default async function(ctx) {
     type: 'widget',
     backgroundColor: C.bg,
     padding: layout.padding,
+    gap: 8, // 核心逻辑：依靠全局 gap=8 控制所有核心层级间距，彻底消除多余白边
     children: [
-      // 🌟 第一行标题 (极简深色标题，去除 ms 为名字留出空间)
+      // 🌟 第一行标题 (去除了 ms)
       {
         type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
         children: [
@@ -182,11 +178,10 @@ export default async function(ctx) {
           }
         ]
       },
-      { type: 'spacer', length: layout.spacerTop },
 
-      // 🌟 主体内容：分组 Panel 卡片，一列到底展示
+      // 🌟 主体内容：两组深色卡片
       {
-        type: 'stack', direction: 'column', flex: 1, gap: layout.groupGap,
+        type: 'stack', direction: 'column', flex: 1, gap: 8,
         children: [
           // 第一组：本地网络
           {
@@ -203,7 +198,7 @@ export default async function(ctx) {
             type: 'stack', direction: 'column', gap: layout.itemGap, padding: layout.groupPad, backgroundColor: C.panel, borderRadius: 8,
             children: [
               Row("network", C.accent, "落地 IP", proxyIp, C.ok),
-              Row("location.fill", C.accent, "位置", proxyLoc, C.text), // 缩短标签字数给值留空间
+              Row("location.fill", C.accent, "位置", proxyLoc, C.text), 
               Row("server.rack", C.accent, "落地机房", proxyIsp, C.text),
               Row("building.2.fill", C.accent, "原生属性", nativeText, C.text),
               Row(riskIc, riskCol, "风险评级", riskTxt, riskCol)
@@ -212,14 +207,12 @@ export default async function(ctx) {
         ]
       },
 
-      { type: 'spacer', length: layout.groupGap },
-
-      // 🌟 右下角面板更新时间
+      // 🌟 右下角纯净更新时间 (去掉了“更新于”)
       {
         type: 'stack', direction: 'row', alignItems: 'center',
         children: [
           { type: 'spacer' },
-          { type: 'text', text: `更新于 ${timeStr}`, font: { size: layout.footerFz, weight: 'bold', family: 'Menlo' }, textColor: C.dim }
+          { type: 'text', text: timeStr, font: { size: layout.footerFz, weight: 'bold', family: 'Menlo' }, textColor: C.dim }
         ]
       }
     ]
