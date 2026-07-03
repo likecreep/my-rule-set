@@ -1,16 +1,23 @@
 /**
  * 🌐 Egern 全能网络信息与 IP 纯净度看板 (高精度测速版)
- * 🎨 Tokyo Night 终极版：智能换行矩阵解决长文本溢出
+ * 🎨 Tokyo Night 黑曜石版：Z轴翻转 / 完美融合底色 / 纯黑 OLED 悬浮卡片
  */
 export default async function(ctx) {
   // ── 1. 动态侦测小组件尺寸 ──
   const family = String(ctx.widgetFamily || '').toLowerCase();
   const isLarge = family === 'systemlarge' || family === 'systemextralarge';
 
-  // ── 2. Tokyo Night 赛博朋克 vs 科技马卡龙 双态色彩令牌系统 ──
+  // ── 2. Tokyo Night 黑曜石双态色彩令牌系统 ──
   const C = {
-    bg:       { light: '#EEF1FF', dark: '#000000' }, 
-    panel:    { light: '#FFFFFF', dark: '#121215' }, 
+    // 🌟 核心重构1：底板隐形。深色改为夜空蓝，与 App 页面完全同色融合
+    bg:       { light: '#EEF1FF', dark: '#16161E' }, 
+    
+    // 🌟 核心重构2：纯黑深渊。深色模式下卡片主体采用极致 OLED 黑
+    panel:    { light: '#FFFFFF', dark: '#000000' }, 
+    
+    // 🌟 核心重构3：物理反光边缘。浅色隐形，深色午夜蓝微光描边
+    border:   { light: '#FFFFFF', dark: '#2B3045' },
+    
     chip:     { light: '#F0F2F8', dark: '#1F1F24' }, 
     hairline: { light: '#E2E8F0', dark: '#2B3045' },
     text:     { light: '#111114', dark: '#FFFFFF' },
@@ -179,17 +186,20 @@ export default async function(ctx) {
     gap: 8, 
     children: [
       
-      // 🌟 顶栏仪表盘卡片
+      // 🌟 顶栏仪表盘卡片：黑曜石面板 + 微描边
       {
         type: 'stack', direction: 'column', gap: 8,
-        backgroundColor: C.panel, borderRadius: 8, padding: layout.groupPad,
+        backgroundColor: C.panel, 
+        borderRadius: 8, 
+        borderWidth: 0.5,           // 物理反光边框
+        borderColor: C.border,      // 浅色隐身，深色泛蓝光
+        padding: layout.groupPad,
         children: [
           // 第 1 行：网络名称与时间
           {
             type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
             children: [
               { type: 'image', src: `sf-symbol:${netIcon}`, color: C.accent, width: layout.headerIcz, height: layout.headerIcz },
-              // 🌟 核心修复：开启 flex:1 和 maxLines:2，文字长了会自动折叠成两行，同时保持加粗气场
               { 
                 type: 'text', 
                 text: `${pubIsp} · ${netName}`, 
@@ -231,7 +241,11 @@ export default async function(ctx) {
         children: [
           // 第 1 组：本地与公网网络
           {
-            type: 'stack', direction: 'column', flex: 1, padding: layout.groupPad, backgroundColor: C.panel, borderRadius: 8,
+            type: 'stack', direction: 'column', flex: 1, padding: layout.groupPad, 
+            backgroundColor: C.panel, 
+            borderRadius: 8,
+            borderWidth: 0.5,           // 物理反光边框
+            borderColor: C.border,
             children: [
               Row("globe", C.accent, "公网 IP", pubIp, C.ok),
               { type: 'spacer' },
@@ -244,7 +258,11 @@ export default async function(ctx) {
           },
           // 第 2 组：外网与纯净度 
           {
-            type: 'stack', direction: 'column', flex: 1, padding: layout.groupPad, backgroundColor: C.panel, borderRadius: 8,
+            type: 'stack', direction: 'column', flex: 1, padding: layout.groupPad, 
+            backgroundColor: C.panel, 
+            borderRadius: 8,
+            borderWidth: 0.5,           // 物理反光边框
+            borderColor: C.border,
             children: [
               Row("network", C.accent, "外网 IP", proxyIp, C.ok),
               { type: 'spacer' },
