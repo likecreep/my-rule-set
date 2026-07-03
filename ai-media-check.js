@@ -1,6 +1,6 @@
 /**
  * Egern小组件: 网络服务解锁监测 (Tokyo Night 东京夜专属版)
- * 🎨 去除过度分割线 / 引入空间留白排版 / 模块化仪表盘封装
+ * 🎨 状态全绿正向反馈 / 模块化仪表盘封装 / 极致留白排版
  */
 export default async function(ctx) {
   const MODE = 'auto'; // auto / large / compact
@@ -418,9 +418,10 @@ export default async function(ctx) {
                 font: { size: 24, weight: 'bold', design: 'monospaced' }, textColor: C.text, maxLines: 1
               },
               { type: 'spacer' },
+              // 🌟 高光反馈：将全部可用时的灰色改为充满极客爽感的荧光绿/薄荷翠 (C.ok)
               {
                 type: 'text', text: lockedCount === 0 ? '全部可用' : `${lockedCount} 项不可用`,
-                font: { size: 11, weight: 'semibold' }, textColor: lockedCount === 0 ? C.dim : C.fail, maxLines: 1
+                font: { size: 11, weight: 'semibold' }, textColor: lockedCount === 0 ? C.ok : C.fail, maxLines: 1
               }
             ]
           }
