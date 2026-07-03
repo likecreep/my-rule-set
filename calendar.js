@@ -1,7 +1,7 @@
 /**
  * ==========================================
- * 📅 Egern 黄历小组件（日夜双重人格·终极色彩版）
- * 🎨 浅色果冻马卡龙极简风 / 深色极致夜之城霓虹美学
+ * 📅 Egern 黄历小组件（日夜双重人格·终极融合版）
+ * 🎨 浅色白瓷阴影质感 / 深色黑曜石 OLED 极客美学
  * ==========================================
  */
 export default async function(ctx) {
@@ -9,11 +9,17 @@ export default async function(ctx) {
   const family = String(ctx.widgetFamily || '').toLowerCase();
   const isLarge = family === 'systemlarge' || family === 'systemextralarge';
 
-  // ── 2. 赛博朋克 vs 科技马卡龙 双态色彩令牌系统 ──
+  // ── 2. Tokyo Night 赛博朋克 vs 科技马卡龙 双态色彩令牌系统 ──
   const C = {
-    // 🌟 底层与卡片
-    bg:       { light: '#EEF1FF', dark: '#000000' }, // 浅色冰蓝融入主题，深色极致 OLED 黑
-    panel:    { light: '#FFFFFF', dark: '#121215' }, // 浅色纯白，深色深空灰衬托霓虹发光
+    // 🌟 底板隐形：浅色冰蓝，深色夜空蓝，与 App 页面完全同色融合
+    bg:       { light: '#EEF1FF', dark: '#16161E' }, 
+    
+    // 🌟 卡片主体：浅色纯白，深色极致 OLED 纯黑
+    panel:    { light: '#FFFFFF', dark: '#000000' }, 
+    
+    // 🌟 物理反光边缘：浅色 8% 透明度阴影，深色午夜蓝微光描边
+    border:   { light: '#00000014', dark: '#2B3045' },
+
     chip:     { light: '#F0F2F8', dark: '#1F1F24' }, 
     
     // 文本色 (浅色冷灰呼应冰蓝，深色科技灰)
@@ -21,17 +27,17 @@ export default async function(ctx) {
     dim:      { light: '#64748B', dark: '#8F93A2' }, 
     
     // 🌟 核心强调色
-    accent:   { light: '#7446D8', dark: '#B765FF' }, // 浅色亮面紫 / 深色赛博紫
+    accent:   { light: '#7446D8', dark: '#B765FF' }, 
     
     // 🌟 语义色彩 (Light: 科技马卡龙 | Dark: 夜之城霓虹)
-    ok:       { light: '#10B981', dark: '#C7FF18' }, // 浅色薄荷翠 / 深色荧光绿
-    warn:     { light: '#F59E0B', dark: '#FFD300' }, // 浅色阳光琥珀 / 深色赛博黄
-    fail:     { light: '#FF4757', dark: '#FF2A6D' }, // 浅色果冻红 / 深色霓虹粉红
+    ok:       { light: '#10B981', dark: '#C7FF18' }, 
+    warn:     { light: '#F59E0B', dark: '#FFD300' }, 
+    fail:     { light: '#FF4757', dark: '#FF2A6D' }, 
     
     // 🌟 标签高光底色 (同色系 10% 透明度，模拟发光/果冻效果)
-    lunarBg:  { light: '#7446D81A', dark: '#B765FF1A' }, // 匹配 accent
-    yiBg:     { light: '#10B9811A', dark: '#C7FF181A' }, // 匹配 ok
-    jiBg:     { light: '#FF47571A', dark: '#FF2A6D1A' }, // 匹配 fail
+    lunarBg:  { light: '#7446D81A', dark: '#B765FF1A' }, 
+    yiBg:     { light: '#10B9811A', dark: '#C7FF181A' }, 
+    jiBg:     { light: '#FF47571A', dark: '#FF2A6D1A' }, 
   };
 
   // ── 3. 统一尺寸体系 ──
@@ -358,13 +364,15 @@ export default async function(ctx) {
 
   // ---------- 构建三张卡片 ----------
 
-  // 🌟 顶部卡片
+  // 🌟 顶部卡片 (应用黑曜石/白瓷物理边缘)
   const topCard = {
     type: "stack", 
     direction: "column", 
     gap: 6,
     backgroundColor: C.panel, 
     borderRadius: 8, 
+    borderWidth: 0.5,
+    borderColor: C.border,
     padding: layout.groupPad,
     children: [
       { 
@@ -392,14 +400,18 @@ export default async function(ctx) {
     ]
   };
 
-  // 🌟 左侧倒计时
+  // 🌟 左侧倒计时 (应用黑曜石/白瓷物理边缘)
   const leftCard = {
     type: "stack", direction: "column", flex: 1,
-    backgroundColor: C.panel, borderRadius: 8, padding: layout.groupPad,
+    backgroundColor: C.panel, 
+    borderRadius: 8, 
+    borderWidth: 0.5,
+    borderColor: C.border,
+    padding: layout.groupPad,
     children: [ countdownRows(topEvents, today, 5) ]
   };
 
-  // 🌟 右侧宜忌
+  // 🌟 右侧宜忌 (应用黑曜石/白瓷物理边缘)
   const yiSize = getDynamicFontSize(rawYi, layout.listFz);
   const jiSize = getDynamicFontSize(rawJi, layout.listFz);
 
@@ -410,7 +422,11 @@ export default async function(ctx) {
 
   const rightCard = {
     type: "stack", direction: "column", flex: 1, gap: 8,
-    backgroundColor: C.panel, borderRadius: 8, padding: layout.groupPad,
+    backgroundColor: C.panel, 
+    borderRadius: 8, 
+    borderWidth: 0.5,
+    borderColor: C.border,
+    padding: layout.groupPad,
     children: [
       {
         type: "stack", direction: "row", gap: 6,
