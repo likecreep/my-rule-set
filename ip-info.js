@@ -26,8 +26,8 @@ export default async function(ctx) {
     padding:    isLarge ? [10, 12, 10, 12] : [12, 12, 12, 12], 
     headerFz:   isLarge ? 12 : 10,
     headerIcz:  isLarge ? 17 : 15,
-    timeFz:     isLarge ? 12 : 10,
-    delayFz:    isLarge ? 13 : 11,
+    timeFz:     10,  // 已修改：对齐 ai-media-check 的刷新时间字体大小 10
+    delayFz:    11,  // 已修改：对齐 ai-media-check 的全部可用/部分解锁字体大小 11
     delayIcz:   isLarge ? 13 : 11,
     rowFz:      isLarge ? 13 : 11,    
     rowIcz:     isLarge ? 15 : 13,    
