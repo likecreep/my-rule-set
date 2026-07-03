@@ -1,6 +1,6 @@
 /**
  * Egern小组件: 网络服务解锁监测 (Tokyo Night 终极完美版)
- * 🎨 日夜物理层级完全对等 / 白瓷与黑曜石的完美质感 / 极致留白排版
+ * 🎨 日夜物理层级完全对等 / 发光果冻标签替换死灰 / 极致留白排版
  */
 export default async function(ctx) {
   const MODE = 'auto'; // auto / large / compact
@@ -16,9 +16,10 @@ export default async function(ctx) {
     // 🌟 物理反光边缘：浅色 8% 纯黑透明度模拟阴影，深色午夜蓝微光描边
     border:   { light: '#00000014', dark: '#2B3045' },
     
-    chip:     { light: '#F0F2F8', dark: '#1F1F24' }, 
+    // 🌟 核心升级：废弃死板的灰色，采用 10% 透明度的强调色作为果冻标签底色
+    chipBg:   { light: '#7446D81A', dark: '#B765FF1A' }, 
     
-    // 🌟 极细分割线：浅色加深为钛银灰，深色保持不变
+    // 🌟 极细分割线：浅色钛银灰，深色午夜蓝
     hairline: { light: '#D1D9E6', dark: '#2B3045' },
     
     text:     { light: '#111114', dark: '#FFFFFF' },
@@ -320,15 +321,19 @@ export default async function(ctx) {
     backgroundColor: available ? C.ok : C.fail, children: []
   });
 
+  // 🌟 将旧的灰色色块彻底替换为：透明果冻底色 + 强调色发光文字
   const RegionChip = region => ({
     type: 'stack',
     padding: isCompact ? [1.5, 4] : [2, 6], 
-    backgroundColor: C.chip, borderRadius: 4, alignItems: 'center',
+    backgroundColor: C.chipBg, 
+    borderRadius: 4, 
+    alignItems: 'center',
     children: [
       {
         type: 'text', text: region || '--',
         font: { size: layout.chipFz, weight: 'bold', design: 'monospaced' },
-        textColor: C.text, maxLines: 1
+        textColor: C.accent, 
+        maxLines: 1
       }
     ]
   });
@@ -351,7 +356,6 @@ export default async function(ctx) {
     ]
   });
 
-  // 顶栏专属大结构分割线
   const TopHairline = () => ({
     type: 'stack', direction: 'row', height: 1, backgroundColor: C.hairline,
     children: [ { type: 'spacer' } ]
@@ -364,7 +368,7 @@ export default async function(ctx) {
       padding: layout.groupPad,
       backgroundColor: C.panel, 
       borderRadius: 8,
-      borderWidth: 0.5,        // 应用拟物物理边缘
+      borderWidth: 0.5,        
       borderColor: C.border,
       children: [
         {
@@ -375,7 +379,6 @@ export default async function(ctx) {
             { type: 'text', text: `${groupOk}/${items.length}`, font: { size: isCompact ? 9 : 10, weight: 'semibold', design: 'monospaced' }, textColor: C.dim, maxLines: 1 }
           ]
         },
-        // 🌟 纯净留白伸缩，视觉极其清透
         { type: 'spacer' },
         ServiceRow(items[0]),
         { type: 'spacer' },
@@ -392,16 +395,14 @@ export default async function(ctx) {
     padding: layout.padding, 
     gap: layout.rowGap,
     children: [
-      // 🌟 顶栏仪表盘封装
       {
         type: 'stack', direction: 'column', gap: 8,
         backgroundColor: C.panel, 
         borderRadius: 8, 
-        borderWidth: 0.5,        // 应用拟物物理边缘
+        borderWidth: 0.5,        
         borderColor: C.border,
         padding: layout.groupPad,
         children: [
-          // 第 1 行：网络解锁总览与时间
           {
             type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
             children: [
@@ -412,10 +413,8 @@ export default async function(ctx) {
             ]
           },
           
-          // 🔪 宏观物理分割，仅保留这一根 Hairline 确立仪表盘上下结构
           TopHairline(),
 
-          // 第 2 行：大比分解锁状态
           {
             type: 'stack', direction: 'row', alignItems: 'center', gap: 8,
             children: [
@@ -425,7 +424,6 @@ export default async function(ctx) {
                 font: { size: 24, weight: 'bold', design: 'monospaced' }, textColor: C.text, maxLines: 1
               },
               { type: 'spacer' },
-              // 🌟 高光反馈：将全部可用时的灰色改为充满极客爽感的荧光绿/薄荷翠 (C.ok)
               {
                 type: 'text', text: lockedCount === 0 ? '全部可用' : `${lockedCount} 项不可用`,
                 font: { size: 11, weight: 'semibold' }, textColor: lockedCount === 0 ? C.ok : C.fail, maxLines: 1
@@ -435,7 +433,6 @@ export default async function(ctx) {
         ]
       },
 
-      // 🌟 下方解锁状态组
       {
         type: 'stack',
         direction: isCompact ? 'row' : 'column',
