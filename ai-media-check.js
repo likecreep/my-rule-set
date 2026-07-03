@@ -1,6 +1,6 @@
 /**
  * Egern小组件: 网络服务解锁监测 (Tokyo Night 东京夜专属版)
- * 🎨 浅色马卡龙极简 / 深色极客赛博霓虹 / 模块化仪表盘封装
+ * 🎨 去除过度分割线 / 引入空间留白排版 / 模块化仪表盘封装
  */
 export default async function(ctx) {
   const MODE = 'auto'; // auto / large / compact
@@ -12,7 +12,7 @@ export default async function(ctx) {
     panel:    { light: '#FFFFFF', dark: '#121215' }, // 浅色纯白，深色深空灰衬托霓虹发光
     chip:     { light: '#F0F2F8', dark: '#1F1F24' }, // 地区标签底色
     
-    // 🌟 极细分割线颜色
+    // 🌟 极细分割线颜色 (仅用于顶栏等大结构分割)
     hairline: { light: '#E2E8F0', dark: '#2B3045' },
     
     // 文本色
@@ -350,8 +350,8 @@ export default async function(ctx) {
     ]
   });
 
-  // 极细分割线，内部加入 spacer 弹性机制强制撑满
-  const Hairline = () => ({
+  // 顶栏专属大结构分割线
+  const TopHairline = () => ({
     type: 'stack', direction: 'row', height: 1, backgroundColor: C.hairline,
     children: [ { type: 'spacer' } ]
   });
@@ -360,7 +360,8 @@ export default async function(ctx) {
     const groupOk = items.filter(item => item.info.available).length;
     return {
       type: 'stack', direction: 'column', flex: 1,
-      gap: isCompact ? 4 : 6, padding: layout.groupPad,
+      // 去除了固定 gap，内部通过 spacer 弹性分布，彻底对齐 ip-info
+      padding: layout.groupPad,
       backgroundColor: C.panel, borderRadius: 8,
       children: [
         {
@@ -371,7 +372,13 @@ export default async function(ctx) {
             { type: 'text', text: `${groupOk}/${items.length}`, font: { size: isCompact ? 9 : 10, weight: 'semibold', design: 'monospaced' }, textColor: C.dim, maxLines: 1 }
           ]
         },
-        ServiceRow(items[0]), Hairline(), ServiceRow(items[1]), Hairline(), ServiceRow(items[2])
+        // 🌟 核心升级：去除极细实体分割线，使用纯净留白伸缩，视觉极其清透
+        { type: 'spacer' },
+        ServiceRow(items[0]),
+        { type: 'spacer' },
+        ServiceRow(items[1]),
+        { type: 'spacer' },
+        ServiceRow(items[2])
       ]
     };
   };
@@ -382,7 +389,7 @@ export default async function(ctx) {
     padding: layout.padding, 
     gap: layout.rowGap,
     children: [
-      // 🌟 核心升级：顶栏仪表盘卡片封装，彻底消灭“画布悬浮感”
+      // 🌟 顶栏仪表盘封装
       {
         type: 'stack', direction: 'column', gap: 8,
         backgroundColor: C.panel, borderRadius: 8, padding: layout.groupPad,
@@ -398,8 +405,8 @@ export default async function(ctx) {
             ]
           },
           
-          // 🔪 引入极细分割线
-          Hairline(),
+          // 🔪 宏观物理分割，仅保留这一根 Hairline 确立仪表盘上下结构
+          TopHairline(),
 
           // 第 2 行：大比分解锁状态
           {
