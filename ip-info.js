@@ -1,25 +1,26 @@
 /**
  * 🌐 Egern 全能网络信息与 IP 纯净度看板 (高精度测速版)
- * 🎨 Tokyo Night 黑曜石版：Z轴翻转 / 完美融合底色 / 纯黑 OLED 悬浮卡片
+ * 🎨 Tokyo Night 终极完美版：日夜物理层级完全对等 / 白瓷与黑曜石的完美质感
  */
 export default async function(ctx) {
   // ── 1. 动态侦测小组件尺寸 ──
   const family = String(ctx.widgetFamily || '').toLowerCase();
   const isLarge = family === 'systemlarge' || family === 'systemextralarge';
 
-  // ── 2. Tokyo Night 黑曜石双态色彩令牌系统 ──
+  // ── 2. Tokyo Night 赛博朋克 vs 科技马卡龙 双态色彩令牌系统 ──
   const C = {
-    // 🌟 核心重构1：底板隐形。深色改为夜空蓝，与 App 页面完全同色融合
+    // 🌟 底板隐形：浅色冰蓝，深色夜空蓝，与 App 页面完全同色融合
     bg:       { light: '#EEF1FF', dark: '#16161E' }, 
     
-    // 🌟 核心重构2：纯黑深渊。深色模式下卡片主体采用极致 OLED 黑
+    // 🌟 卡片主体：浅色纯白，深色极致 OLED 纯黑
     panel:    { light: '#FFFFFF', dark: '#000000' }, 
     
-    // 🌟 核心重构3：物理反光边缘。浅色隐形，深色午夜蓝微光描边
-    border:   { light: '#FFFFFF', dark: '#2B3045' },
+    // 🌟 物理反光边缘：浅色白瓷冰蓝灰，深色黑曜石午夜蓝 (日夜物理属性完全对等)
+    border:   { light: '#E2E8F0', dark: '#2B3045' },
     
     chip:     { light: '#F0F2F8', dark: '#1F1F24' }, 
     hairline: { light: '#E2E8F0', dark: '#2B3045' },
+    
     text:     { light: '#111114', dark: '#FFFFFF' },
     dim:      { light: '#64748B', dark: '#8F93A2' }, 
     accent:   { light: '#7446D8', dark: '#B765FF' }, 
@@ -186,13 +187,13 @@ export default async function(ctx) {
     gap: 8, 
     children: [
       
-      // 🌟 顶栏仪表盘卡片：黑曜石面板 + 微描边
+      // 🌟 顶栏仪表盘卡片
       {
         type: 'stack', direction: 'column', gap: 8,
         backgroundColor: C.panel, 
         borderRadius: 8, 
-        borderWidth: 0.5,           // 物理反光边框
-        borderColor: C.border,      // 浅色隐身，深色泛蓝光
+        borderWidth: 0.5,           // 物理边缘厚度
+        borderColor: C.border,      // 浅色白瓷清脆包边，深色午夜蓝微光描边
         padding: layout.groupPad,
         children: [
           // 第 1 行：网络名称与时间
@@ -244,7 +245,7 @@ export default async function(ctx) {
             type: 'stack', direction: 'column', flex: 1, padding: layout.groupPad, 
             backgroundColor: C.panel, 
             borderRadius: 8,
-            borderWidth: 0.5,           // 物理反光边框
+            borderWidth: 0.5,
             borderColor: C.border,
             children: [
               Row("globe", C.accent, "公网 IP", pubIp, C.ok),
@@ -261,7 +262,7 @@ export default async function(ctx) {
             type: 'stack', direction: 'column', flex: 1, padding: layout.groupPad, 
             backgroundColor: C.panel, 
             borderRadius: 8,
-            borderWidth: 0.5,           // 物理反光边框
+            borderWidth: 0.5,
             borderColor: C.border,
             children: [
               Row("network", C.accent, "外网 IP", proxyIp, C.ok),
