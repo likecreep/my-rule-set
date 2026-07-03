@@ -1,7 +1,7 @@
 /**
  * ==========================================
- * 📅 Egern 黄历小组件（Tokyo Night 东京夜专属版）
- * 🎨 100% 接入全局主题 Token / 极致 Z 轴层级融合
+ * 📅 Egern 黄历小组件（日夜双重人格·终极色彩版）
+ * 🎨 浅色果冻马卡龙极简风 / 深色极致夜之城霓虹美学
  * ==========================================
  */
 export default async function(ctx) {
@@ -9,31 +9,29 @@ export default async function(ctx) {
   const family = String(ctx.widgetFamily || '').toLowerCase();
   const isLarge = family === 'systemlarge' || family === 'systemextralarge';
 
-  // ── 2. Tokyo Night (东京夜) 色彩令牌系统 ──
+  // ── 2. 赛博朋克 vs 科技马卡龙 双态色彩令牌系统 ──
   const C = {
-    // [底层] 映射 groupedBackground (融入 App 全局画布)
-    bg:       { light: '#EEF1FF', dark: '#16161E' }, 
-    // [中层] 映射 secondaryGroupedBackground (悬浮卡片主体)
-    panel:    { light: '#FFFFFF', dark: '#24283B' }, 
-    // [顶层] 映射 tertiaryGroupedBackground (内部小模块/标签底色)
-    chip:     { light: '#DFE5FF', dark: '#2F3549' }, 
+    // 🌟 底层与卡片
+    bg:       { light: '#EEF1FF', dark: '#000000' }, // 浅色冰蓝融入主题，深色极致 OLED 黑
+    panel:    { light: '#FFFFFF', dark: '#121215' }, // 浅色纯白，深色深空灰衬托霓虹发光
+    chip:     { light: '#F0F2F8', dark: '#1F1F24' }, 
     
-    // 东京夜专属高质感文本色 (不再使用生硬的纯黑白)
-    text:     { light: '#343B58', dark: '#C0CAF5' },
-    dim:      { light: '#787C99', dark: '#565F89' }, 
+    // 文本色 (浅色冷灰呼应冰蓝，深色科技灰)
+    text:     { light: '#111114', dark: '#FFFFFF' },
+    dim:      { light: '#64748B', dark: '#8F93A2' }, 
     
-    // 🌟 主题核心强调色 (Accent)
-    accent:   { light: '#5A7EEB', dark: '#7AA2F7' }, 
+    // 🌟 核心强调色
+    accent:   { light: '#7446D8', dark: '#B765FF' }, // 浅色亮面紫 / 深色赛博紫
     
-    // 语义色彩映射 (调用主题自带的 Green / Red / Yellow)
-    yiBg:     { light: '#4CAF501A', dark: '#9ECE6A1A' }, // Green 10%
-    yiTxt:    { light: '#4CAF50', dark: '#9ECE6A' },     // Green
-    jiBg:     { light: '#E85C751A', dark: '#F7768E1A' }, // Red 10%
-    jiTxt:    { light: '#E85C75', dark: '#F7768E' },     // Red
+    // 🌟 语义色彩 (Light: 科技马卡龙 | Dark: 夜之城霓虹)
+    ok:       { light: '#10B981', dark: '#C7FF18' }, // 浅色薄荷翠 / 深色荧光绿
+    warn:     { light: '#F59E0B', dark: '#FFD300' }, // 浅色阳光琥珀 / 深色赛博黄
+    fail:     { light: '#FF4757', dark: '#FF2A6D' }, // 浅色果冻红 / 深色霓虹粉红
     
-    ok:       { light: '#4CAF50', dark: '#9ECE6A' },     // Green (节气)
-    warn:     { light: '#D39A38', dark: '#E0AF68' },     // Yellow (民俗)
-    fail:     { light: '#E85C75', dark: '#F7768E' }      // Red (法定)
+    // 🌟 标签高光底色 (同色系 10% 透明度，模拟发光/果冻效果)
+    lunarBg:  { light: '#7446D81A', dark: '#B765FF1A' }, // 匹配 accent
+    yiBg:     { light: '#10B9811A', dark: '#C7FF181A' }, // 匹配 ok
+    jiBg:     { light: '#FF47571A', dark: '#FF2A6D1A' }, // 匹配 fail
   };
 
   // ── 3. 统一尺寸体系 ──
@@ -240,10 +238,10 @@ export default async function(ctx) {
         const diff = dateDiff(today, it[1]);
         let color;
         switch(it[2]) {
-          case "legal": color = C.fail; break; // Tokyo Night Red
-          case "term": color = C.ok; break;    // Tokyo Night Green
-          case "folk": color = C.warn; break;  // Tokyo Night Yellow
-          case "other": color = C.accent; break; // Tokyo Night Accent
+          case "legal": color = C.fail; break; 
+          case "term": color = C.ok; break;    
+          case "folk": color = C.warn; break;  
+          case "other": color = C.accent; break; 
           default: color = C.text;
         }
         rows.push({
@@ -360,7 +358,7 @@ export default async function(ctx) {
 
   // ---------- 构建三张卡片 ----------
 
-  // 🌟 顶部卡片 (完全融入 Tokyo Night)
+  // 🌟 顶部卡片
   const topCard = {
     type: "stack", 
     direction: "column", 
@@ -373,7 +371,7 @@ export default async function(ctx) {
         type: "stack", direction: "row", alignItems: "center", justifyContent: "center", gap: 6,
         children: [
           { type: "spacer" },
-          // 标志性的 Tokyo Night Accent 小图标
+          // 标志性的 Accent Purple 小图标
           { type: "image", src: "sf-symbol:calendar", color: C.accent, width: layout.titleIcz, height: layout.titleIcz },
           { type: "text", text: `${Y}年${M}月${D}日 周${W}`, font: { size: layout.titleFz, weight: "bold" }, textColor: C.text },
           { type: "spacer" }
@@ -381,7 +379,7 @@ export default async function(ctx) {
       },
       {
         type: "stack", direction: "row", alignItems: "center", justifyContent: "center",
-        padding: [6, 8], backgroundColor: C.chip, borderRadius: 6, // 使用 tertiaryGroupedBackground
+        padding: [6, 8], backgroundColor: C.lunarBg, borderRadius: 6, 
         children: [
           { type: "spacer" },
           { 
@@ -417,14 +415,14 @@ export default async function(ctx) {
       {
         type: "stack", direction: "row", gap: 6,
         children: [
-          Tag("宜", C.yiTxt, C.yiBg),
+          Tag("宜", C.ok, C.yiBg),
           { type: "text", text: rawYi, font: { size: yiSize, weight: "regular" }, textColor: C.text, flex: 1 }
         ]
       },
       {
         type: "stack", direction: "row", gap: 6,
         children: [
-          Tag("忌", C.jiTxt, C.jiBg),
+          Tag("忌", C.fail, C.jiBg), 
           { type: "text", text: rawJi, font: { size: jiSize, weight: "regular" }, textColor: C.text, flex: 1 }
         ]
       }
@@ -434,7 +432,7 @@ export default async function(ctx) {
   // ---------- 最终组件渲染输出 ----------
   return {
     type: "widget",
-    backgroundColor: C.bg, // 使得卡片间隙完美融入 App 全局画布
+    backgroundColor: C.bg, 
     padding: layout.padding,
     gap: layout.colGap,
     children: [
