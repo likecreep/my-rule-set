@@ -1,6 +1,6 @@
 /**
  * 🌐 Egern 全能网络信息与 IP 纯净度看板 (高精度测速版)
- * 🎨 Tokyo Night 终极完美版：日夜物理层级完全对等 / 白瓷与黑曜石的完美质感
+ * 🎨 Tokyo Night 终极完美版：引入 8% 物理阴影边框，重塑白瓷锋利感
  */
 export default async function(ctx) {
   // ── 1. 动态侦测小组件尺寸 ──
@@ -15,11 +15,14 @@ export default async function(ctx) {
     // 🌟 卡片主体：浅色纯白，深色极致 OLED 纯黑
     panel:    { light: '#FFFFFF', dark: '#000000' }, 
     
-    // 🌟 物理反光边缘：浅色白瓷冰蓝灰，深色黑曜石午夜蓝 (日夜物理属性完全对等)
-    border:   { light: '#E2E8F0', dark: '#2B3045' },
+    // 🌟 物理反光边缘 (核心重构)：
+    // 浅色使用 8% 纯黑透明度 (#00000014)，模拟真实的白瓷环境暗角；深色使用午夜蓝微光描边
+    border:   { light: '#00000014', dark: '#2B3045' },
     
     chip:     { light: '#F0F2F8', dark: '#1F1F24' }, 
-    hairline: { light: '#E2E8F0', dark: '#2B3045' },
+    
+    // 🌟 极细分割线：浅色加深为钛银灰，深色保持不变
+    hairline: { light: '#D1D9E6', dark: '#2B3045' },
     
     text:     { light: '#111114', dark: '#FFFFFF' },
     dim:      { light: '#64748B', dark: '#8F93A2' }, 
@@ -192,8 +195,8 @@ export default async function(ctx) {
         type: 'stack', direction: 'column', gap: 8,
         backgroundColor: C.panel, 
         borderRadius: 8, 
-        borderWidth: 0.5,           // 物理边缘厚度
-        borderColor: C.border,      // 浅色白瓷清脆包边，深色午夜蓝微光描边
+        borderWidth: 0.5,
+        borderColor: C.border, // 应用拟物物理边缘
         padding: layout.groupPad,
         children: [
           // 第 1 行：网络名称与时间
