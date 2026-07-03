@@ -1,6 +1,6 @@
 /**
  * 🌐 Egern 全能网络信息与 IP 纯净度看板 (高精度测速版)
- * 🎨 Tokyo Night 终极版：去除过度封装 / 引入极简极细分割线 (Hairline)
+ * 🎨 Tokyo Night 终极版：弹性弹簧机制修复极细分割线
  */
 export default async function(ctx) {
   // ── 1. 动态侦测小组件尺寸 ──
@@ -14,7 +14,7 @@ export default async function(ctx) {
     panel:    { light: '#FFFFFF', dark: '#121215' }, 
     chip:     { light: '#F0F2F8', dark: '#1F1F24' }, 
     
-    // 🌟 新增：Tokyo Night 专属极细分割线颜色
+    // 🌟 Tokyo Night 专属极细分割线颜色
     hairline: { light: '#E2E8F0', dark: '#2B3045' },
     
     text:     { light: '#111114', dark: '#FFFFFF' },
@@ -203,10 +203,13 @@ export default async function(ctx) {
             ]
           },
           
-          // 🔪 引入极细分割线 (Hairline Divider)，替代臃肿的色块
-          { type: 'stack', height: 1, backgroundColor: C.hairline },
+          // 🔪 引入极细分割线 (加入 spacer 弹性机制，强制撑满横向 100% 空间)
+          { 
+            type: 'stack', direction: 'row', height: 1, backgroundColor: C.hairline,
+            children: [ { type: 'spacer' } ]
+          },
 
-          // 第 2 行：测速延迟 (直接暴露在纯净底色上，让霓虹色 100% 显色)
+          // 第 2 行：测速延迟
           {
             type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
             children: [
