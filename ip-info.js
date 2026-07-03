@@ -1,6 +1,6 @@
 /**
  * 🌐 Egern 全能网络信息与 IP 纯净度看板 (高精度测速版)
- * 🎨 Tokyo Night 东京夜专属版：模块化仪表盘封装 / 告别悬浮感
+ * 🎨 Tokyo Night 终极版：去除过度封装 / 引入极简极细分割线 (Hairline)
  */
 export default async function(ctx) {
   // ── 1. 动态侦测小组件尺寸 ──
@@ -10,21 +10,23 @@ export default async function(ctx) {
   // ── 2. Tokyo Night 赛博朋克 vs 科技马卡龙 双态色彩令牌系统 ──
   const C = {
     // 🌟 底层与卡片
-    bg:       { light: '#EEF1FF', dark: '#000000' }, // 浅色冰蓝融入主题，深色极致 OLED 黑
-    panel:    { light: '#FFFFFF', dark: '#121215' }, // 浅色纯白，深色深空灰衬托霓虹发光
+    bg:       { light: '#EEF1FF', dark: '#000000' }, 
+    panel:    { light: '#FFFFFF', dark: '#121215' }, 
     chip:     { light: '#F0F2F8', dark: '#1F1F24' }, 
     
-    // 文本色 (浅色冷灰呼应冰蓝，深色科技灰)
+    // 🌟 新增：Tokyo Night 专属极细分割线颜色
+    hairline: { light: '#E2E8F0', dark: '#2B3045' },
+    
     text:     { light: '#111114', dark: '#FFFFFF' },
     dim:      { light: '#64748B', dark: '#8F93A2' }, 
     
     // 🌟 核心强调色
-    accent:   { light: '#7446D8', dark: '#B765FF' }, // 浅色亮面紫 / 深色赛博紫
+    accent:   { light: '#7446D8', dark: '#B765FF' }, 
     
-    // 🌟 语义色彩 (Light: 科技马卡龙 | Dark: 夜之城霓虹)
-    ok:       { light: '#10B981', dark: '#C7FF18' }, // 浅色薄荷翠 / 深色荧光绿
-    warn:     { light: '#F59E0B', dark: '#FFD300' }, // 浅色阳光琥珀 / 深色赛博黄
-    fail:     { light: '#FF4757', dark: '#FF2A6D' }  // 浅色果冻红 / 深色霓虹粉红
+    // 🌟 语义色彩
+    ok:       { light: '#10B981', dark: '#C7FF18' }, 
+    warn:     { light: '#F59E0B', dark: '#FFD300' }, 
+    fail:     { light: '#FF4757', dark: '#FF2A6D' }  
   };
 
   // ── 3. 像素级对标尺寸体系 ──
@@ -185,7 +187,7 @@ export default async function(ctx) {
     gap: 8, 
     children: [
       
-      // 🌟 核心升级：将孤立的顶部信息封装为「顶栏仪表盘卡片」
+      // 🌟 顶栏仪表盘卡片：极致的负空间(留白)与极细分割线设计
       {
         type: 'stack', direction: 'column', gap: 8,
         backgroundColor: C.panel, borderRadius: 8, padding: layout.groupPad,
@@ -200,10 +202,13 @@ export default async function(ctx) {
               { type: 'text', text: timeStr, font: { size: layout.timeFz, weight: 'medium', design: 'monospaced' }, textColor: C.dim }
             ]
           },
-          // 第 2 行：测速延迟 (内嵌式 LCD 发光屏设计)
+          
+          // 🔪 引入极细分割线 (Hairline Divider)，替代臃肿的色块
+          { type: 'stack', height: 1, backgroundColor: C.hairline },
+
+          // 第 2 行：测速延迟 (直接暴露在纯净底色上，让霓虹色 100% 显色)
           {
             type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
-            padding: [6, 8], backgroundColor: C.chip, borderRadius: 6,
             children: [
               { type: 'spacer' },
               { type: 'image', src: 'sf-symbol:mappin.circle.fill', color: domColor, width: layout.delayIcz, height: layout.delayIcz },
