@@ -1,6 +1,6 @@
 /**
  * 🌐 Egern 全能网络信息与 IP 纯净度看板 (高精度测速版)
- * 🎨 Tokyo Night 终极版：弹性弹簧机制修复极细分割线
+ * 🎨 Tokyo Night 终极版：智能换行矩阵解决长文本溢出
  */
 export default async function(ctx) {
   // ── 1. 动态侦测小组件尺寸 ──
@@ -9,21 +9,13 @@ export default async function(ctx) {
 
   // ── 2. Tokyo Night 赛博朋克 vs 科技马卡龙 双态色彩令牌系统 ──
   const C = {
-    // 🌟 底层与卡片
     bg:       { light: '#EEF1FF', dark: '#000000' }, 
     panel:    { light: '#FFFFFF', dark: '#121215' }, 
     chip:     { light: '#F0F2F8', dark: '#1F1F24' }, 
-    
-    // 🌟 Tokyo Night 专属极细分割线颜色
     hairline: { light: '#E2E8F0', dark: '#2B3045' },
-    
     text:     { light: '#111114', dark: '#FFFFFF' },
     dim:      { light: '#64748B', dark: '#8F93A2' }, 
-    
-    // 🌟 核心强调色
     accent:   { light: '#7446D8', dark: '#B765FF' }, 
-    
-    // 🌟 语义色彩
     ok:       { light: '#10B981', dark: '#C7FF18' }, 
     warn:     { light: '#F59E0B', dark: '#FFD300' }, 
     fail:     { light: '#FF4757', dark: '#FF2A6D' }  
@@ -32,8 +24,8 @@ export default async function(ctx) {
   // ── 3. 像素级对标尺寸体系 ──
   const layout = {
     padding:    isLarge ? [10, 12, 10, 12] : [12, 12, 12, 12], 
-    headerFz:   isLarge ? 13 : 11,  
-    headerIcz:  isLarge ? 17 : 15,  
+    headerFz:   13,  
+    headerIcz:  17,  
     timeFz:     10,  
     delayFz:    11,  
     delayIcz:   12,  
@@ -61,7 +53,7 @@ export default async function(ctx) {
   const localIp = d.ipv4?.address || "获取失败";
   const gateway = d.ipv4?.gateway || "获取失败";
 
-  // ── 5. 同步阻塞式网络测速 (严格应用官方 redirect: 'manual' 阻断重定向) ──
+  // ── 5. 同步阻塞式网络测速 ──
   let domesticPing = 0;
   try {
     const s1 = Date.now();
@@ -187,7 +179,7 @@ export default async function(ctx) {
     gap: 8, 
     children: [
       
-      // 🌟 顶栏仪表盘卡片：极致的负空间(留白)与极细分割线设计
+      // 🌟 顶栏仪表盘卡片
       {
         type: 'stack', direction: 'column', gap: 8,
         backgroundColor: C.panel, borderRadius: 8, padding: layout.groupPad,
@@ -197,13 +189,21 @@ export default async function(ctx) {
             type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
             children: [
               { type: 'image', src: `sf-symbol:${netIcon}`, color: C.accent, width: layout.headerIcz, height: layout.headerIcz },
-              { type: 'text', text: `${pubIsp} · ${netName}`, font: { size: layout.headerFz, weight: 'bold' }, textColor: C.text, maxLines: 1, minScale: 0.7 },
-              { type: 'spacer' },
+              // 🌟 核心修复：开启 flex:1 和 maxLines:2，文字长了会自动折叠成两行，同时保持加粗气场
+              { 
+                type: 'text', 
+                text: `${pubIsp} · ${netName}`, 
+                font: { size: layout.headerFz, weight: 'bold' }, 
+                textColor: C.text, 
+                maxLines: 2, 
+                minScale: 0.85, 
+                flex: 1 
+              },
               { type: 'text', text: timeStr, font: { size: layout.timeFz, weight: 'medium', design: 'monospaced' }, textColor: C.dim }
             ]
           },
           
-          // 🔪 引入极细分割线 (加入 spacer 弹性机制，强制撑满横向 100% 空间)
+          // 🔪 极细分割线
           { 
             type: 'stack', direction: 'row', height: 1, backgroundColor: C.hairline,
             children: [ { type: 'spacer' } ]
