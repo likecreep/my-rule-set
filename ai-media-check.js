@@ -1,31 +1,32 @@
 /**
- * Egern小组件: 网络服务解锁监测 (Tokyo Night 东京夜专属版)
- * 🎨 状态全绿正向反馈 / 模块化仪表盘封装 / 极致留白排版
+ * Egern小组件: 网络服务解锁监测 (Tokyo Night 终极完美版)
+ * 🎨 日夜物理层级完全对等 / 白瓷与黑曜石的完美质感 / 极致留白排版
  */
 export default async function(ctx) {
   const MODE = 'auto'; // auto / large / compact
 
-  // ── 1. Tokyo Night 赛博朋克 vs 科技马卡龙 双态色彩令牌系统 ──
+  // ── 1. Tokyo Night 黑曜石双态色彩令牌系统 ──
   const C = {
-    // 🌟 底层与卡片
-    bg:       { light: '#EEF1FF', dark: '#000000' }, // 浅色冰蓝融入主题，深色极致 OLED 黑
-    panel:    { light: '#FFFFFF', dark: '#121215' }, // 浅色纯白，深色深空灰衬托霓虹发光
-    chip:     { light: '#F0F2F8', dark: '#1F1F24' }, // 地区标签底色
+    // 🌟 底板隐形：浅色冰蓝，深色夜空蓝，与 App 页面完全同色融合
+    bg:       { light: '#EEF1FF', dark: '#16161E' }, 
     
-    // 🌟 极细分割线颜色 (仅用于顶栏等大结构分割)
-    hairline: { light: '#E2E8F0', dark: '#2B3045' },
+    // 🌟 卡片主体：浅色纯白，深色极致 OLED 纯黑
+    panel:    { light: '#FFFFFF', dark: '#000000' }, 
     
-    // 文本色
+    // 🌟 物理反光边缘：浅色 8% 纯黑透明度模拟阴影，深色午夜蓝微光描边
+    border:   { light: '#00000014', dark: '#2B3045' },
+    
+    chip:     { light: '#F0F2F8', dark: '#1F1F24' }, 
+    
+    // 🌟 极细分割线：浅色加深为钛银灰，深色保持不变
+    hairline: { light: '#D1D9E6', dark: '#2B3045' },
+    
     text:     { light: '#111114', dark: '#FFFFFF' },
     dim:      { light: '#64748B', dark: '#8F93A2' }, 
-    
-    // 🌟 核心强调色
-    accent:   { light: '#7446D8', dark: '#B765FF' }, // 浅色亮面紫 / 深色赛博紫
-    
-    // 🌟 语义色彩 (Light: 科技马卡龙 | Dark: 夜之城霓虹)
-    ok:       { light: '#10B981', dark: '#C7FF18' }, // 解锁状态：薄荷翠 / 荧光绿
-    warn:     { light: '#F59E0B', dark: '#FFD300' }, // 警告状态：阳光琥珀 / 赛博黄
-    fail:     { light: '#FF4757', dark: '#FF2A6D' }  // 失败状态：果冻红 / 霓虹粉红
+    accent:   { light: '#7446D8', dark: '#B765FF' }, 
+    ok:       { light: '#10B981', dark: '#C7FF18' }, 
+    warn:     { light: '#F59E0B', dark: '#FFD300' }, 
+    fail:     { light: '#FF4757', dark: '#FF2A6D' }  
   };
 
   const BASE_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
@@ -360,9 +361,11 @@ export default async function(ctx) {
     const groupOk = items.filter(item => item.info.available).length;
     return {
       type: 'stack', direction: 'column', flex: 1,
-      // 去除了固定 gap，内部通过 spacer 弹性分布，彻底对齐 ip-info
       padding: layout.groupPad,
-      backgroundColor: C.panel, borderRadius: 8,
+      backgroundColor: C.panel, 
+      borderRadius: 8,
+      borderWidth: 0.5,        // 应用拟物物理边缘
+      borderColor: C.border,
       children: [
         {
           type: 'stack', direction: 'row', alignItems: 'center',
@@ -372,7 +375,7 @@ export default async function(ctx) {
             { type: 'text', text: `${groupOk}/${items.length}`, font: { size: isCompact ? 9 : 10, weight: 'semibold', design: 'monospaced' }, textColor: C.dim, maxLines: 1 }
           ]
         },
-        // 🌟 核心升级：去除极细实体分割线，使用纯净留白伸缩，视觉极其清透
+        // 🌟 纯净留白伸缩，视觉极其清透
         { type: 'spacer' },
         ServiceRow(items[0]),
         { type: 'spacer' },
@@ -392,7 +395,11 @@ export default async function(ctx) {
       // 🌟 顶栏仪表盘封装
       {
         type: 'stack', direction: 'column', gap: 8,
-        backgroundColor: C.panel, borderRadius: 8, padding: layout.groupPad,
+        backgroundColor: C.panel, 
+        borderRadius: 8, 
+        borderWidth: 0.5,        // 应用拟物物理边缘
+        borderColor: C.border,
+        padding: layout.groupPad,
         children: [
           // 第 1 行：网络解锁总览与时间
           {
