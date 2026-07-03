@@ -11,19 +11,19 @@ export default async function(ctx) {
 
   // ── 2. 标准色彩令牌系统 (恢复灰底白卡) ──
   const C = {
-    bg:       { light: '#F2F2F7', dark: '#000000' }, // 灰质底色
-    panel:    { light: '#FFFFFF', dark: '#1C1C1E' }, // 纯白卡片
+    bg:       { light: '#F2F2F7', dark: '#000000' }, 
+    panel:    { light: '#FFFFFF', dark: '#1C1C1E' }, 
     text:     { light: '#111114', dark: '#F7F7F8' },
     dim:      { light: '#7B7B84', dark: '#85858E' }, 
     chip:     { light: '#ECECF1', dark: '#202025' },
     accent:   { light: '#7446D8', dark: '#B765FF' }, 
     
     // 🌟 设计师特调专属色彩
-    lunarBg:  { light: '#FFF8E1', dark: '#3E2C1B' }, // 农历行淡暖底色
-    lunarTxt: { light: '#A67C00', dark: '#E5C07B' }, // 农历行琉璃金
-    yiBg:     { light: '#E8F5E9', dark: '#1B3E20' }, // 宜·淡翠绿底
+    lunarBg:  { light: '#FFF8E1', dark: '#3E2C1B' }, 
+    lunarTxt: { light: '#A67C00', dark: '#E5C07B' }, 
+    yiBg:     { light: '#E8F5E9', dark: '#1B3E20' }, 
     yiTxt:    { light: '#2E7D32', dark: '#66BB6A' }, 
-    jiBg:     { light: '#FFEBEE', dark: '#4A1C1C' }, // 忌·淡朱红底
+    jiBg:     { light: '#FFEBEE', dark: '#4A1C1C' }, 
     jiTxt:    { light: '#C62828', dark: '#EF5350' },
     
     ok:       { light: '#2F9E58', dark: '#C7FF18' }, 
@@ -36,7 +36,7 @@ export default async function(ctx) {
     padding:    isLarge ? [10, 12, 10, 12] : [12, 12, 12, 12], 
     groupPad:   isLarge ? [8, 10] : [8, 10],
     titleFz:    13,
-    lunarFz:    11, // 调大农历字号
+    lunarFz:    11, 
     listFz:     11,
     tagFz:      11,
     rowGap:     6,
@@ -354,11 +354,10 @@ export default async function(ctx) {
 
   // ---------- 构建三张卡片 ----------
 
-  // 🌟 顶部卡片 (强行拉伸宽度，内部居中)
+  // 🌟 顶部卡片 (移除了导致报错的 alignItems: "stretch")
   const topCard = {
     type: "stack", 
     direction: "column", 
-    alignItems: "stretch", // 强制充满横向可用空间
     gap: 6,
     backgroundColor: C.panel, 
     borderRadius: 8, 
@@ -374,12 +373,12 @@ export default async function(ctx) {
       },
       {
         type: "stack", direction: "row", alignItems: "center", justifyContent: "center",
-        padding: [6, 8], backgroundColor: C.lunarBg, borderRadius: 6, // 专属暖调农历行
+        padding: [6, 8], backgroundColor: C.lunarBg, borderRadius: 6,
         children: [
           { type: "spacer" },
           { 
             type: "text", text: `${yearGZ} · ${monthGZ} · ${dayGZ} · ${hourGZ} · ${lunar.cn} (${lunar.ani})`, 
-            font: { size: layout.lunarFz, weight: "bold" }, textColor: C.lunarTxt // 琉璃金高亮
+            font: { size: layout.lunarFz, weight: "bold" }, textColor: C.lunarTxt
           },
           { type: "spacer" }
         ]
@@ -398,7 +397,6 @@ export default async function(ctx) {
   const yiSize = getDynamicFontSize(rawYi, layout.listFz);
   const jiSize = getDynamicFontSize(rawJi, layout.listFz);
 
-  // 恢复带背景色的宜忌标签
   const Tag = (text, textColor, bgColor) => ({
     type: "stack", padding: [2, 6], backgroundColor: bgColor, borderRadius: 4,
     children: [{ type: "text", text: text, font: { size: layout.tagFz, weight: "bold" }, textColor: textColor }]
