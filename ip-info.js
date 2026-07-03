@@ -227,7 +227,7 @@ export default async function(ctx) {
               { type: 'spacer' },
               Row("location.fill", C.accent, "位置", proxyLoc, C.text), 
               { type: 'spacer' },
-              Row("server.rack", C.accent, "落地机房", proxyIsp, C.text),
+              Row("server.rack", C.accent, "机房", proxyIsp, C.text),
               { type: 'spacer' },
               Row("building.2.fill", C.accent, "原生属性", nativeText, C.text),
               { type: 'spacer' },
