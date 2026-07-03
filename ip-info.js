@@ -1,33 +1,39 @@
 /**
  * 🌐 Egern 全能网络信息与 IP 纯净度看板 (高精度测速版)
- * 🎨 完美对齐 ai-media-check 视觉规范体系 (顶栏视觉强化版)
+ * 🎨 Tokyo Night 东京夜专属版：浅色马卡龙极简 / 深色极客赛博霓虹
  */
 export default async function(ctx) {
   // ── 1. 动态侦测小组件尺寸 ──
   const family = String(ctx.widgetFamily || '').toLowerCase();
   const isLarge = family === 'systemlarge' || family === 'systemextralarge';
 
-  // ── 2. ai-media-check 标准色彩令牌系统 ──
+  // ── 2. Tokyo Night 赛博朋克 vs 科技马卡龙 双态色彩令牌系统 ──
   const C = {
-    bg:       { light: '#FFFFFF', dark: '#050506' },
-    text:     { light: '#111114', dark: '#F7F7F8' },
-    dim:      { light: '#7B7B84', dark: '#85858E' }, 
-    panel:    { light: '#F5F5F7', dark: '#111114' },
-    hairline: { light: '#E4E4E8', dark: '#242429' },
-    chip:     { light: '#ECECF1', dark: '#202025' },
-    accent:   { light: '#7446D8', dark: '#B765FF' }, 
-    ok:       { light: '#2F9E58', dark: '#C7FF18' }, 
-    warn:     { light: '#FF9500', dark: '#FFD60A' }, 
-    fail:     { light: '#D64545', dark: '#FF626A' }  
+    // 🌟 底层与卡片
+    bg:       { light: '#EEF1FF', dark: '#000000' }, // 浅色冰蓝融入主题，深色极致 OLED 黑
+    panel:    { light: '#FFFFFF', dark: '#121215' }, // 浅色纯白，深色深空灰衬托霓虹发光
+    chip:     { light: '#F0F2F8', dark: '#1F1F24' }, 
+    
+    // 文本色 (浅色冷灰呼应冰蓝，深色科技灰)
+    text:     { light: '#111114', dark: '#FFFFFF' },
+    dim:      { light: '#64748B', dark: '#8F93A2' }, 
+    
+    // 🌟 核心强调色
+    accent:   { light: '#7446D8', dark: '#B765FF' }, // 浅色亮面紫 / 深色赛博紫
+    
+    // 🌟 语义色彩 (Light: 科技马卡龙 | Dark: 夜之城霓虹)
+    ok:       { light: '#10B981', dark: '#C7FF18' }, // 浅色薄荷翠 / 深色荧光绿
+    warn:     { light: '#F59E0B', dark: '#FFD300' }, // 浅色阳光琥珀 / 深色赛博黄
+    fail:     { light: '#FF4757', dark: '#FF2A6D' }  // 浅色果冻红 / 深色霓虹粉红
   };
 
-  // ── 3. 像素级对标 ai-media-check 尺寸体系 ──
+  // ── 3. 像素级对标尺寸体系 ──
   const layout = {
     padding:    isLarge ? [10, 12, 10, 12] : [12, 12, 12, 12], 
-    headerFz:   isLarge ? 13 : 11,  // 已修正：调大字号，补偿中文字符在小字号下的视觉分量弱势
+    headerFz:   isLarge ? 13 : 11,  
     headerIcz:  isLarge ? 17 : 15,  
-    timeFz:     10,  // 保持 10 号字以对齐时间基准线
-    delayFz:    11,  // 严格对齐 ai-media-check 第二行右侧字号
+    timeFz:     10,  
+    delayFz:    11,  
     delayIcz:   12,  
     rowFz:      isLarge ? 13 : 11,    
     rowIcz:     isLarge ? 15 : 13,    
@@ -178,7 +184,7 @@ export default async function(ctx) {
     padding: layout.padding,
     gap: 8, 
     children: [
-      // 🌟 第 1 行：提升左侧网络信息色彩等级至 C.text，配合增大后的字号，完美凸显标题层级
+      // 🌟 第 1 行：顶栏标题层级
       {
         type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
         children: [
