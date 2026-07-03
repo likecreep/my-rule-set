@@ -1,6 +1,6 @@
 /**
  * 🌐 Egern 全能网络信息与 IP 纯净度看板 (高精度测速版)
- * 🎨 Tokyo Night 东京夜专属版：浅色马卡龙极简 / 深色极客赛博霓虹
+ * 🎨 Tokyo Night 东京夜专属版：模块化仪表盘封装 / 告别悬浮感
  */
 export default async function(ctx) {
   // ── 1. 动态侦测小组件尺寸 ──
@@ -184,27 +184,36 @@ export default async function(ctx) {
     padding: layout.padding,
     gap: 8, 
     children: [
-      // 🌟 第 1 行：顶栏标题层级
+      
+      // 🌟 核心升级：将孤立的顶部信息封装为「顶栏仪表盘卡片」
       {
-        type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
+        type: 'stack', direction: 'column', gap: 8,
+        backgroundColor: C.panel, borderRadius: 8, padding: layout.groupPad,
         children: [
-          { type: 'image', src: `sf-symbol:${netIcon}`, color: C.accent, width: layout.headerIcz, height: layout.headerIcz },
-          { type: 'text', text: `${pubIsp} · ${netName}`, font: { size: layout.headerFz, weight: 'bold' }, textColor: C.text, maxLines: 1, minScale: 0.7 },
-          { type: 'spacer' },
-          { type: 'text', text: timeStr, font: { size: layout.timeFz, weight: 'medium', design: 'monospaced' }, textColor: C.dim }
-        ]
-      },
-
-      // 🌟 第 2 行：测速延迟
-      {
-        type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
-        children: [
-          { type: 'spacer' },
-          { type: 'image', src: 'sf-symbol:mappin.circle.fill', color: domColor, width: layout.delayIcz, height: layout.delayIcz },
-          { type: 'text', text: domesticPing > 0 ? `${domesticPing}ms` : "-", font: { size: layout.delayFz, weight: 'semibold', design: 'monospaced' }, textColor: domColor },
-          { type: 'spacer', length: 12 },
-          { type: 'image', src: 'sf-symbol:globe.fill', color: forColor, width: layout.delayIcz, height: layout.delayIcz },
-          { type: 'text', text: foreignPing > 0 ? `${foreignPing}ms` : "-", font: { size: layout.delayFz, weight: 'semibold', design: 'monospaced' }, textColor: forColor }
+          // 第 1 行：网络名称与时间
+          {
+            type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
+            children: [
+              { type: 'image', src: `sf-symbol:${netIcon}`, color: C.accent, width: layout.headerIcz, height: layout.headerIcz },
+              { type: 'text', text: `${pubIsp} · ${netName}`, font: { size: layout.headerFz, weight: 'bold' }, textColor: C.text, maxLines: 1, minScale: 0.7 },
+              { type: 'spacer' },
+              { type: 'text', text: timeStr, font: { size: layout.timeFz, weight: 'medium', design: 'monospaced' }, textColor: C.dim }
+            ]
+          },
+          // 第 2 行：测速延迟 (内嵌式 LCD 发光屏设计)
+          {
+            type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
+            padding: [6, 8], backgroundColor: C.chip, borderRadius: 6,
+            children: [
+              { type: 'spacer' },
+              { type: 'image', src: 'sf-symbol:mappin.circle.fill', color: domColor, width: layout.delayIcz, height: layout.delayIcz },
+              { type: 'text', text: domesticPing > 0 ? `${domesticPing}ms` : "-", font: { size: layout.delayFz, weight: 'semibold', design: 'monospaced' }, textColor: domColor },
+              { type: 'spacer', length: 16 },
+              { type: 'image', src: 'sf-symbol:globe.fill', color: forColor, width: layout.delayIcz, height: layout.delayIcz },
+              { type: 'text', text: foreignPing > 0 ? `${foreignPing}ms` : "-", font: { size: layout.delayFz, weight: 'semibold', design: 'monospaced' }, textColor: forColor },
+              { type: 'spacer' }
+            ]
+          }
         ]
       },
 
