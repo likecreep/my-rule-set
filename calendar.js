@@ -1,7 +1,7 @@
 /**
  * ==========================================
- * 📅 Egern 黄历小组件（三卡片·视觉重构版）
- * 🎨 完美对齐 ai-media-check 与 ip-info 视觉体系
+ * 📅 Egern 黄历小组件（灰底白卡·典雅重构版）
+ * 🎨 完美横向布局 / 宜忌彩色标签 / 专属琉璃金农历行
  * ==========================================
  */
 export default async function(ctx) {
@@ -9,15 +9,23 @@ export default async function(ctx) {
   const family = String(ctx.widgetFamily || '').toLowerCase();
   const isLarge = family === 'systemlarge' || family === 'systemextralarge';
 
-  // ── 2. 标准色彩令牌系统 ──
+  // ── 2. 标准色彩令牌系统 (恢复灰底白卡) ──
   const C = {
-    bg:       { light: '#FFFFFF', dark: '#050506' },
+    bg:       { light: '#F2F2F7', dark: '#000000' }, // 灰质底色
+    panel:    { light: '#FFFFFF', dark: '#1C1C1E' }, // 纯白卡片
     text:     { light: '#111114', dark: '#F7F7F8' },
     dim:      { light: '#7B7B84', dark: '#85858E' }, 
-    panel:    { light: '#F5F5F7', dark: '#111114' },
-    hairline: { light: '#E4E4E8', dark: '#242429' },
     chip:     { light: '#ECECF1', dark: '#202025' },
     accent:   { light: '#7446D8', dark: '#B765FF' }, 
+    
+    // 🌟 设计师特调专属色彩
+    lunarBg:  { light: '#FFF8E1', dark: '#3E2C1B' }, // 农历行淡暖底色
+    lunarTxt: { light: '#A67C00', dark: '#E5C07B' }, // 农历行琉璃金
+    yiBg:     { light: '#E8F5E9', dark: '#1B3E20' }, // 宜·淡翠绿底
+    yiTxt:    { light: '#2E7D32', dark: '#66BB6A' }, 
+    jiBg:     { light: '#FFEBEE', dark: '#4A1C1C' }, // 忌·淡朱红底
+    jiTxt:    { light: '#C62828', dark: '#EF5350' },
+    
     ok:       { light: '#2F9E58', dark: '#C7FF18' }, 
     warn:     { light: '#FF9500', dark: '#FFD60A' }, 
     fail:     { light: '#D64545', dark: '#FF626A' }  
@@ -28,7 +36,7 @@ export default async function(ctx) {
     padding:    isLarge ? [10, 12, 10, 12] : [12, 12, 12, 12], 
     groupPad:   isLarge ? [8, 10] : [8, 10],
     titleFz:    13,
-    lunarFz:    10,
+    lunarFz:    11, // 调大农历字号
     listFz:     11,
     tagFz:      11,
     rowGap:     6,
@@ -217,7 +225,7 @@ export default async function(ctx) {
     return uniqueEvents;
   }
 
-  // ---------- 倒计时列表（带圆点） ----------
+  // ---------- 倒计时列表 ----------
   function countdownRows(events, today, maxItems) {
     const rows = [];
     for (let i = 0; i < maxItems; i++) {
@@ -326,13 +334,11 @@ export default async function(ctx) {
   const today = fmtYMD(Y, M, D);
   const NY = Y + 1;
 
-  // 宜忌
   const api = await getAlmanac();
   const getVal = (...k) => { for(let i of k) if(api[i]) return api[i]; return ""; };
   let rawYi = getVal("yi","Yi","suit").trim() || "诸事不宜";
   let rawJi = getVal("ji","Ji","avoid").trim() || "诸事大吉";
 
-  // 干支
   const lunar = Lunar.toObj(Y,M,D);
   const gzAPI = await getGanZhiFromAPI();
   const fallbackDay = getDayGanZhi(Y,M,D);
@@ -344,27 +350,38 @@ export default async function(ctx) {
   const dayGan = dayGZ[0];
   const hourGZ = getHourGanZhi(dayGan, H);
 
-  // 倒计时事件（5个）
   const topEvents = getTopEvents(today, Y, NY, 5);
 
   // ---------- 构建三张卡片 ----------
-  // 🌟 顶部卡片
+
+  // 🌟 顶部卡片 (强行拉伸宽度，内部居中)
   const topCard = {
-    type: "stack", direction: "column", alignItems: "center", gap: 6,
-    backgroundColor: C.panel, borderRadius: 8, padding: layout.groupPad,
+    type: "stack", 
+    direction: "column", 
+    alignItems: "stretch", // 强制充满横向可用空间
+    gap: 6,
+    backgroundColor: C.panel, 
+    borderRadius: 8, 
+    padding: layout.groupPad,
     children: [
       { 
-        type: "text", text: `📅 ${Y}年${M}月${D}日 周${W}`, 
-        font: { size: layout.titleFz, weight: "bold" }, textColor: C.text
+        type: "stack", direction: "row", alignItems: "center", justifyContent: "center",
+        children: [
+          { type: "spacer" },
+          { type: "text", text: `📅 ${Y}年${M}月${D}日 周${W}`, font: { size: layout.titleFz, weight: "bold" }, textColor: C.text },
+          { type: "spacer" }
+        ]
       },
       {
-        type: "stack", direction: "row", justifyContent: "center",
-        padding: [4, 8], backgroundColor: C.chip, borderRadius: 6,
+        type: "stack", direction: "row", alignItems: "center", justifyContent: "center",
+        padding: [6, 8], backgroundColor: C.lunarBg, borderRadius: 6, // 专属暖调农历行
         children: [
+          { type: "spacer" },
           { 
             type: "text", text: `${yearGZ} · ${monthGZ} · ${dayGZ} · ${hourGZ} · ${lunar.cn} (${lunar.ani})`, 
-            font: { size: layout.lunarFz, weight: "medium" }, textColor: C.dim 
-          }
+            font: { size: layout.lunarFz, weight: "bold" }, textColor: C.lunarTxt // 琉璃金高亮
+          },
+          { type: "spacer" }
         ]
       }
     ]
@@ -381,9 +398,10 @@ export default async function(ctx) {
   const yiSize = getDynamicFontSize(rawYi, layout.listFz);
   const jiSize = getDynamicFontSize(rawJi, layout.listFz);
 
-  const Tag = (text, color) => ({
-    type: "stack", padding: [2, 6], backgroundColor: C.chip, borderRadius: 4,
-    children: [{ type: "text", text: text, font: { size: layout.tagFz, weight: "bold" }, textColor: color }]
+  // 恢复带背景色的宜忌标签
+  const Tag = (text, textColor, bgColor) => ({
+    type: "stack", padding: [2, 6], backgroundColor: bgColor, borderRadius: 4,
+    children: [{ type: "text", text: text, font: { size: layout.tagFz, weight: "bold" }, textColor: textColor }]
   });
 
   const rightCard = {
@@ -393,14 +411,14 @@ export default async function(ctx) {
       {
         type: "stack", direction: "row", gap: 6,
         children: [
-          Tag("宜", C.ok),
+          Tag("宜", C.yiTxt, C.yiBg),
           { type: "text", text: rawYi, font: { size: yiSize, weight: "regular" }, textColor: C.text, flex: 1 }
         ]
       },
       {
         type: "stack", direction: "row", gap: 6,
         children: [
-          Tag("忌", C.fail),
+          Tag("忌", C.jiTxt, C.jiBg),
           { type: "text", text: rawJi, font: { size: jiSize, weight: "regular" }, textColor: C.text, flex: 1 }
         ]
       }
