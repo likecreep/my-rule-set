@@ -1,46 +1,52 @@
 /**
  * ==========================================
- * 📅 Egern 黄历小组件（三卡片·精美化版）
- * 功能：日期+干支（顶部居中）｜倒计时5项（左）｜宜忌动态字号（右）
- * 布局：左右卡片各占45%，中间留空，等宽自适应
- * 美化：柔和渐变背景、圆角卡片带边框、干支标签、倒计时圆点、宜忌彩色标签
- * 修复：宜忌空白时强制使用默认值
+ * 📅 Egern 黄历小组件（Tokyo Night 东京夜专属版）
+ * 🎨 100% 接入全局主题 Token / 极致 Z 轴层级融合
  * ==========================================
  */
 export default async function(ctx) {
-  // ---------- 配色 ----------
-  const colors = {
-    outerBg: { light: '#F2F2F7', dark: '#000000' },
-    cardBg: { light: '#FFFFFF', dark: '#1C1C1E' },
-    cardBorder: { light: 'rgba(0,0,0,0.08)', dark: 'rgba(255,255,255,0.08)' },
-    main: { light: '#1C1C1E', dark: '#FFFFFF' },
-    sub: { light: '#6C6C70', dark: '#8E8E93' },
-    gold: { light: '#A67C00', dark: '#E5C07B' },
-    yi: { light: '#2E7D32', dark: '#66BB6A' },
-    ji: { light: '#C62828', dark: '#EF5350' },
-    countdown: {
-      legal: '#FF6B6B',
-      term: '#4ECDC4',
-      folk: '#FFD93D',
-      other: '#6C9BCF'
-    }
+  // ── 1. 动态侦测小组件尺寸 ──
+  const family = String(ctx.widgetFamily || '').toLowerCase();
+  const isLarge = family === 'systemlarge' || family === 'systemextralarge';
+
+  // ── 2. Tokyo Night (东京夜) 色彩令牌系统 ──
+  const C = {
+    // [底层] 映射 groupedBackground (融入 App 全局画布)
+    bg:       { light: '#EEF1FF', dark: '#16161E' }, 
+    // [中层] 映射 secondaryGroupedBackground (悬浮卡片主体)
+    panel:    { light: '#FFFFFF', dark: '#24283B' }, 
+    // [顶层] 映射 tertiaryGroupedBackground (内部小模块/标签底色)
+    chip:     { light: '#DFE5FF', dark: '#2F3549' }, 
+    
+    // 东京夜专属高质感文本色 (不再使用生硬的纯黑白)
+    text:     { light: '#343B58', dark: '#C0CAF5' },
+    dim:      { light: '#787C99', dark: '#565F89' }, 
+    
+    // 🌟 主题核心强调色 (Accent)
+    accent:   { light: '#5A7EEB', dark: '#7AA2F7' }, 
+    
+    // 语义色彩映射 (调用主题自带的 Green / Red / Yellow)
+    yiBg:     { light: '#4CAF501A', dark: '#9ECE6A1A' }, // Green 10%
+    yiTxt:    { light: '#4CAF50', dark: '#9ECE6A' },     // Green
+    jiBg:     { light: '#E85C751A', dark: '#F7768E1A' }, // Red 10%
+    jiTxt:    { light: '#E85C75', dark: '#F7768E' },     // Red
+    
+    ok:       { light: '#4CAF50', dark: '#9ECE6A' },     // Green (节气)
+    warn:     { light: '#D39A38', dark: '#E0AF68' },     // Yellow (民俗)
+    fail:     { light: '#E85C75', dark: '#F7768E' }      // Red (法定)
   };
 
-  // ---------- 字体/间距 ----------
-  const fontConfig = {
-    title: 16,
-    lunar: 11,
-    yiji_title: 12,
-    yiji_content: 12,
-    countdown: 11
-  };
-  const spaceConfig = {
-    padding: 6,
-    cardPadding: 10,
-    titleLunar: 4,
-    lunarYiji: 8,
-    rowGap: 2,
-    colGap: 8
+  // ── 3. 统一尺寸体系 ──
+  const layout = {
+    padding:    isLarge ? [10, 12, 10, 12] : [12, 12, 12, 12], 
+    groupPad:   isLarge ? [8, 10] : [8, 10],
+    titleFz:    15, 
+    titleIcz:   16, 
+    lunarFz:    11, 
+    listFz:     11,
+    tagFz:      11,
+    rowGap:     6,
+    colGap:     8
   };
 
   // ---------- 工具函数 ----------
@@ -225,7 +231,7 @@ export default async function(ctx) {
     return uniqueEvents;
   }
 
-  // ---------- 倒计时列表（带圆点） ----------
+  // ---------- 倒计时列表 ----------
   function countdownRows(events, today, maxItems) {
     const rows = [];
     for (let i = 0; i < maxItems; i++) {
@@ -234,49 +240,42 @@ export default async function(ctx) {
         const diff = dateDiff(today, it[1]);
         let color;
         switch(it[2]) {
-          case "legal": color = colors.countdown.legal; break;
-          case "term": color = colors.countdown.term; break;
-          case "folk": color = colors.countdown.folk; break;
-          case "other": color = colors.countdown.other; break;
-          default: color = colors.main;
+          case "legal": color = C.fail; break; // Tokyo Night Red
+          case "term": color = C.ok; break;    // Tokyo Night Green
+          case "folk": color = C.warn; break;  // Tokyo Night Yellow
+          case "other": color = C.accent; break; // Tokyo Night Accent
+          default: color = C.text;
         }
         rows.push({
-          type: "stack",
-          direction: "row",
-          alignItems: "center",
+          type: "stack", direction: "row", alignItems: "center", gap: 4,
           children: [
-            { type: "text", text: "●", font: { size: fontConfig.countdown, weight: "bold" }, textColor: color },
-            { type: "spacer", length: 4 },
-            { type: "text", text: it[0], font: { size: fontConfig.countdown, weight: "regular" }, textColor: colors.main, flex: 1 },
-            { type: "spacer", length: 6 },
-            { type: "text", text: diff === 0 ? "(今)" : `${diff}天`, font: { size: fontConfig.countdown, weight: "bold" }, textColor: diff === 0 ? color : colors.sub }
+            { type: "text", text: "●", font: { size: 9, weight: "bold" }, textColor: color },
+            { type: "text", text: it[0], font: { size: layout.listFz, weight: "medium" }, textColor: C.text, flex: 1, maxLines: 1 },
+            { type: "text", text: diff === 0 ? "今" : `${diff}天`, font: { size: layout.listFz, weight: "semibold", design: "monospaced" }, textColor: diff === 0 ? color : C.dim }
           ]
         });
       } else {
         rows.push({
-          type: "stack",
-          direction: "row",
-          children: [
-            { type: "text", text: " ", font: { size: fontConfig.countdown, weight: "regular" }, textColor: colors.main }
-          ]
+          type: "stack", direction: "row",
+          children: [ { type: "text", text: " ", font: { size: layout.listFz }, textColor: C.text } ]
         });
       }
     }
-    const children = [];
-    rows.forEach((item, idx) => {
-      children.push(item);
-      if (idx < rows.length - 1) children.push({ type: "spacer", length: spaceConfig.rowGap });
-    });
-    return { type: "stack", direction: "column", children: children };
+    
+    return { 
+      type: "stack", 
+      direction: "column", 
+      gap: layout.rowGap,
+      children: rows 
+    };
   }
 
   // ---------- 动态字号 ----------
   function getDynamicFontSize(text, defaultSize) {
     if (!text) return defaultSize;
     const len = text.length;
-    if (len > 30) return 8;
-    if (len > 20) return 9;
-    if (len > 12) return 10;
+    if (len > 30) return 9;
+    if (len > 20) return 10;
     return defaultSize;
   }
 
@@ -324,14 +323,10 @@ export default async function(ctx) {
       const list = json.data[0].almanac;
       for (let i of list) {
         if (i.year == Y && i.month == M && i.day == D) {
-          return {
-            year: i.gzYear + "年",
-            month: i.gzMonth + "月",
-            day: i.gzDate + "日"
-          };
+          return { year: i.gzYear + "年", month: i.gzMonth + "月", day: i.gzDate + "日" };
         }
       }
-    } catch (e) { console.log("干支API失败:", e); }
+    } catch (e) {}
     return null;
   };
 
@@ -344,17 +339,12 @@ export default async function(ctx) {
   const W = "日一二三四五六"[now.getDay()];
   const today = fmtYMD(Y, M, D);
   const NY = Y + 1;
-  const P = n => n < 10 ? `0${n}` : n;
 
-  // 宜忌 - 修复空白问题
   const api = await getAlmanac();
   const getVal = (...k) => { for(let i of k) if(api[i]) return api[i]; return ""; };
-  let rawYi = getVal("yi","Yi","suit").trim();
-  let rawJi = getVal("ji","Ji","avoid").trim();
-  if (!rawYi) rawYi = "诸事不宜";
-  if (!rawJi) rawJi = "诸事大吉";
+  let rawYi = getVal("yi","Yi","suit").trim() || "诸事不宜";
+  let rawJi = getVal("ji","Ji","avoid").trim() || "诸事大吉";
 
-  // 干支
   const lunar = Lunar.toObj(Y,M,D);
   const gzAPI = await getGanZhiFromAPI();
   const fallbackDay = getDayGanZhi(Y,M,D);
@@ -366,144 +356,94 @@ export default async function(ctx) {
   const dayGan = dayGZ[0];
   const hourGZ = getHourGanZhi(dayGan, H);
 
-  // 倒计时事件（5个）
   const topEvents = getTopEvents(today, Y, NY, 5);
 
   // ---------- 构建三张卡片 ----------
-  // 顶部卡片
+
+  // 🌟 顶部卡片 (完全融入 Tokyo Night)
   const topCard = {
-    type: "stack",
-    direction: "column",
-    backgroundColor: colors.cardBg,
-    borderRadius: 12,
-    borderWidth: 0.5,
-    borderColor: colors.cardBorder,
-    padding: spaceConfig.cardPadding,
+    type: "stack", 
+    direction: "column", 
+    gap: 6,
+    backgroundColor: C.panel, 
+    borderRadius: 8, 
+    padding: layout.groupPad,
     children: [
       { 
-        type: "text", 
-        text: `📅 ${Y}年${M}月${D}日 周${W}`, 
-        font: { size: fontConfig.title, weight: "bold" }, 
-        textColor: colors.main, 
-        textAlign: "center" 
-      },
-      { type: "spacer", length: spaceConfig.titleLunar },
-      {
-        type: "stack",
-        direction: "row",
-        justifyContent: "center",
-        padding: [2, 8],
-        backgroundColor: { light: "#FFF8E1", dark: "#3E2C1B" },
-        borderRadius: 4,
+        type: "stack", direction: "row", alignItems: "center", justifyContent: "center", gap: 6,
         children: [
+          { type: "spacer" },
+          // 标志性的 Tokyo Night Accent 小图标
+          { type: "image", src: "sf-symbol:calendar", color: C.accent, width: layout.titleIcz, height: layout.titleIcz },
+          { type: "text", text: `${Y}年${M}月${D}日 周${W}`, font: { size: layout.titleFz, weight: "bold" }, textColor: C.text },
+          { type: "spacer" }
+        ]
+      },
+      {
+        type: "stack", direction: "row", alignItems: "center", justifyContent: "center",
+        padding: [6, 8], backgroundColor: C.chip, borderRadius: 6, // 使用 tertiaryGroupedBackground
+        children: [
+          { type: "spacer" },
           { 
-            type: "text", 
-            text: `${yearGZ} · ${monthGZ} · ${dayGZ} · ${hourGZ} · ${lunar.cn} (${lunar.ani})`, 
-            font: { size: fontConfig.lunar, weight: "medium" }, 
-            textColor: colors.gold 
-          }
+            type: "text", text: `${yearGZ} · ${monthGZ} · ${dayGZ} · ${hourGZ} · ${lunar.cn} (${lunar.ani})`, 
+            font: { size: layout.lunarFz, weight: "bold" }, textColor: C.accent 
+          },
+          { type: "spacer" }
         ]
       }
     ]
   };
 
-  // 左卡片（倒计时）
+  // 🌟 左侧倒计时
   const leftCard = {
-    type: "stack",
-    direction: "column",
-    size: { width: "45%" },
-    backgroundColor: colors.cardBg,
-    borderRadius: 12,
-    borderWidth: 0.5,
-    borderColor: colors.cardBorder,
-    padding: spaceConfig.cardPadding,
+    type: "stack", direction: "column", flex: 1,
+    backgroundColor: C.panel, borderRadius: 8, padding: layout.groupPad,
     children: [ countdownRows(topEvents, today, 5) ]
   };
 
-  // 右卡片（宜忌）
-  const yiSize = getDynamicFontSize(rawYi, fontConfig.yiji_content);
-  const jiSize = getDynamicFontSize(rawJi, fontConfig.yiji_content);
+  // 🌟 右侧宜忌
+  const yiSize = getDynamicFontSize(rawYi, layout.listFz);
+  const jiSize = getDynamicFontSize(rawJi, layout.listFz);
 
-  const yiLabel = {
-    type: "stack",
-    direction: "row",
-    padding: [2, 6],
-    backgroundColor: { light: colors.yi.light + "20", dark: colors.yi.dark + "20" },
-    borderRadius: 4,
-    children: [
-      { type: "text", text: "宜", font: { size: fontConfig.yiji_title, weight: "bold" }, textColor: colors.yi }
-    ]
-  };
-  const jiLabel = {
-    type: "stack",
-    direction: "row",
-    padding: [2, 6],
-    backgroundColor: { light: colors.ji.light + "20", dark: colors.ji.dark + "20" },
-    borderRadius: 4,
-    children: [
-      { type: "text", text: "忌", font: { size: fontConfig.yiji_title, weight: "bold" }, textColor: colors.ji }
-    ]
-  };
+  const Tag = (text, textColor, bgColor) => ({
+    type: "stack", padding: [2, 6], backgroundColor: bgColor, borderRadius: 4,
+    children: [{ type: "text", text: text, font: { size: layout.tagFz, weight: "bold" }, textColor: textColor }]
+  });
 
   const rightCard = {
-    type: "stack",
-    direction: "column",
-    size: { width: "45%" },
-    backgroundColor: colors.cardBg,
-    borderRadius: 12,
-    borderWidth: 0.5,
-    borderColor: colors.cardBorder,
-    padding: spaceConfig.cardPadding,
+    type: "stack", direction: "column", flex: 1, gap: 8,
+    backgroundColor: C.panel, borderRadius: 8, padding: layout.groupPad,
     children: [
       {
-        type: "stack",
-        direction: "row",
-        alignItems: "center",
+        type: "stack", direction: "row", gap: 6,
         children: [
-          yiLabel,
-          { type: "spacer", length: 4 },
-          { type: "text", text: rawYi, font: { size: yiSize, weight: "regular" }, textColor: colors.main, flex: 1 }
+          Tag("宜", C.yiTxt, C.yiBg),
+          { type: "text", text: rawYi, font: { size: yiSize, weight: "regular" }, textColor: C.text, flex: 1 }
         ]
       },
-      { type: "spacer", length: spaceConfig.rowGap },
       {
-        type: "stack",
-        direction: "row",
-        alignItems: "center",
+        type: "stack", direction: "row", gap: 6,
         children: [
-          jiLabel,
-          { type: "spacer", length: 4 },
-          { type: "text", text: rawJi, font: { size: jiSize, weight: "regular" }, textColor: colors.main, flex: 1 }
+          Tag("忌", C.jiTxt, C.jiBg),
+          { type: "text", text: rawJi, font: { size: jiSize, weight: "regular" }, textColor: C.text, flex: 1 }
         ]
       }
     ]
   };
 
-  // 底部行
-  const bottomRow = {
-    type: "stack",
-    direction: "row",
-    children: [
-      leftCard,
-      { type: "spacer", length: spaceConfig.colGap },
-      rightCard
-    ]
-  };
-
-  // 整体垂直
-  const widgetChildren = [
-    topCard,
-    { type: "spacer", length: spaceConfig.lunarYiji },
-    bottomRow
-  ];
-
-  // ---------- 返回 Widget ----------
+  // ---------- 最终组件渲染输出 ----------
   return {
     type: "widget",
-    size: "systemMedium",
-    padding: spaceConfig.padding,
-    backgroundColor: colors.outerBg,
-    children: widgetChildren
+    backgroundColor: C.bg, // 使得卡片间隙完美融入 App 全局画布
+    padding: layout.padding,
+    gap: layout.colGap,
+    children: [
+      topCard,
+      {
+        type: "stack", direction: "row", gap: layout.colGap,
+        children: [ leftCard, rightCard ]
+      }
+    ]
   };
 }
 
