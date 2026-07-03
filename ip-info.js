@@ -1,6 +1,6 @@
 /**
  * 🌐 Egern 全能网络信息与 IP 纯净度看板 (高精度测速版)
- * 🎨 完美对齐 ai-media-check 视觉规范体系
+ * 🎨 完美对齐 ai-media-check 视觉规范体系 (顶栏视觉强化版)
  */
 export default async function(ctx) {
   // ── 1. 动态侦测小组件尺寸 ──
@@ -24,11 +24,11 @@ export default async function(ctx) {
   // ── 3. 像素级对标 ai-media-check 尺寸体系 ──
   const layout = {
     padding:    isLarge ? [10, 12, 10, 12] : [12, 12, 12, 12], 
-    headerFz:   10,  // 已修正：无视组件大小，强制固定 10 号字以对齐 ai-media-check 静态顶栏
-    headerIcz:  15,  // 图标尺寸严格同步
-    timeFz:     10,  // 保持 10 号字 medium 字重
+    headerFz:   isLarge ? 13 : 11,  // 已修正：调大字号，补偿中文字符在小字号下的视觉分量弱势
+    headerIcz:  isLarge ? 17 : 15,  
+    timeFz:     10,  // 保持 10 号字以对齐时间基准线
     delayFz:    11,  // 严格对齐 ai-media-check 第二行右侧字号
-    delayIcz:   12,  // 针对延迟行特别优化的精致图标尺寸
+    delayIcz:   12,  
     rowFz:      isLarge ? 13 : 11,    
     rowIcz:     isLarge ? 15 : 13,    
     rowGap:     6,                    
@@ -178,18 +178,18 @@ export default async function(ctx) {
     padding: layout.padding,
     gap: 8, 
     children: [
-      // 🌟 第 1 行：左侧网络信息与右侧刷新时间在字号、字重上完全对齐
+      // 🌟 第 1 行：提升左侧网络信息色彩等级至 C.text，配合增大后的字号，完美凸显标题层级
       {
         type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
         children: [
           { type: 'image', src: `sf-symbol:${netIcon}`, color: C.accent, width: layout.headerIcz, height: layout.headerIcz },
-          { type: 'text', text: `${pubIsp} · ${netName}`, font: { size: layout.headerFz, weight: 'bold' }, textColor: C.dim, maxLines: 1, minScale: 0.7 },
+          { type: 'text', text: `${pubIsp} · ${netName}`, font: { size: layout.headerFz, weight: 'bold' }, textColor: C.text, maxLines: 1, minScale: 0.7 },
           { type: 'spacer' },
           { type: 'text', text: timeStr, font: { size: layout.timeFz, weight: 'medium', design: 'monospaced' }, textColor: C.dim }
         ]
       },
 
-      // 🌟 第 2 行：引入等宽设计与 semibold 字重，彻底抹平数字渲染形态差异
+      // 🌟 第 2 行：测速延迟
       {
         type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
         children: [
