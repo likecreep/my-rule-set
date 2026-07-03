@@ -1,0 +1,7 @@
+name: fix
+description: 修正一些域名强制走代理
+rules:
+- rule_set:
+    match: 'https://raw.githubusercontent.com/likecreep/my-rule-set/master/fix.yaml'
+    policy: Manual
+    disabled: false
