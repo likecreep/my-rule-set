@@ -1,6 +1,6 @@
 /**
  * 🌐 Egern 全能网络信息与 IP 纯净度看板 (高精度测速版)
- * 🎨 对齐 ai-media-check 间距与字号 / 同步阻塞精准测速 / Lsdl 方案获取 AS
+ * 🎨 完美对齐 ai-media-check 视觉规范体系
  */
 export default async function(ctx) {
   // ── 1. 动态侦测小组件尺寸 ──
@@ -21,14 +21,14 @@ export default async function(ctx) {
     fail:     { light: '#D64545', dark: '#FF626A' }  
   };
 
-  // ── 3. 严格对标 ai-media-check 尺寸体系 ──
+  // ── 3. 像素级对标 ai-media-check 尺寸体系 ──
   const layout = {
     padding:    isLarge ? [10, 12, 10, 12] : [12, 12, 12, 12], 
-    headerFz:   isLarge ? 12 : 10,
-    headerIcz:  isLarge ? 17 : 15,
-    timeFz:     10,  // 已修改：对齐 ai-media-check 的刷新时间字体大小 10
-    delayFz:    11,  // 已修改：对齐 ai-media-check 的全部可用/部分解锁字体大小 11
-    delayIcz:   isLarge ? 13 : 11,
+    headerFz:   10,  // 已修正：无视组件大小，强制固定 10 号字以对齐 ai-media-check 静态顶栏
+    headerIcz:  15,  // 图标尺寸严格同步
+    timeFz:     10,  // 保持 10 号字 medium 字重
+    delayFz:    11,  // 严格对齐 ai-media-check 第二行右侧字号
+    delayIcz:   12,  // 针对延迟行特别优化的精致图标尺寸
     rowFz:      isLarge ? 13 : 11,    
     rowIcz:     isLarge ? 15 : 13,    
     rowGap:     6,                    
@@ -76,7 +76,7 @@ export default async function(ctx) {
     foreignPing = Date.now() - s2;
   } catch (e) {}
 
-  // ── 6. 获取节点 IP 与纯净度数据 (新增 ip-api 并发请求获取落地 AS) ──
+  // ── 6. 获取节点 IP 与纯净度数据 ──
   const TIMEOUT_MS = 3500;
   const httpGetJson = async (url) => {
     try {
@@ -90,7 +90,7 @@ export default async function(ctx) {
   const [directRes, proxyRes, ipApiRes] = await Promise.all([
     httpGetJson('https://myip.ipip.net/json'),
     httpGetJson('https://my.ippure.com/v1/info'),
-    httpGetJson('http://ip-api.com/json/?lang=zh-CN') // 引入 lsdl 的 API
+    httpGetJson('http://ip-api.com/json/?lang=zh-CN')
   ]);
 
   // ── 7. 解析直连公网与位置数据 ──
@@ -142,7 +142,6 @@ export default async function(ctx) {
     }
   }
 
-  // 🌟 使用 lsdl 的 ip-api.com 数据提取 as 作为落地机房
   if (ipApiRes && ipApiRes.as) {
     proxyIsp = ipApiRes.as;
   }
@@ -179,7 +178,7 @@ export default async function(ctx) {
     padding: layout.padding,
     gap: 8, 
     children: [
-      // 🌟 第 1 行：左侧运营商/网络名 (bold)，右侧时间含秒数 (monospaced)
+      // 🌟 第 1 行：左侧网络信息与右侧刷新时间在字号、字重上完全对齐
       {
         type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
         children: [
@@ -190,20 +189,20 @@ export default async function(ctx) {
         ]
       },
 
-      // 🌟 第 2 行：测速延迟独占一行，右侧对齐，字体对齐
+      // 🌟 第 2 行：引入等宽设计与 semibold 字重，彻底抹平数字渲染形态差异
       {
         type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
         children: [
           { type: 'spacer' },
           { type: 'image', src: 'sf-symbol:mappin.circle.fill', color: domColor, width: layout.delayIcz, height: layout.delayIcz },
-          { type: 'text', text: domesticPing > 0 ? `${domesticPing}ms` : "-", font: { size: layout.delayFz, weight: 'semibold' }, textColor: domColor },
+          { type: 'text', text: domesticPing > 0 ? `${domesticPing}ms` : "-", font: { size: layout.delayFz, weight: 'semibold', design: 'monospaced' }, textColor: domColor },
           { type: 'spacer', length: 12 },
           { type: 'image', src: 'sf-symbol:globe.fill', color: forColor, width: layout.delayIcz, height: layout.delayIcz },
-          { type: 'text', text: foreignPing > 0 ? `${foreignPing}ms` : "-", font: { size: layout.delayFz, weight: 'semibold' }, textColor: forColor }
+          { type: 'text', text: foreignPing > 0 ? `${foreignPing}ms` : "-", font: { size: layout.delayFz, weight: 'semibold', design: 'monospaced' }, textColor: forColor }
         ]
       },
 
-      // 🌟 主体内容：包裹在垂直 flex 容器内，自动撑满剩余空间
+      // 🌟 主体内容
       {
         type: 'stack', direction: 'column', flex: 1, gap: 8,
         children: [
