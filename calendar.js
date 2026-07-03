@@ -1,7 +1,7 @@
 /**
  * ==========================================
- * 📅 Egern 黄历小组件（灰底白卡·典雅重构版）
- * 🎨 完美横向布局 / 宜忌彩色标签 / 专属琉璃金农历行
+ * 📅 Egern 黄历小组件（赛博紫·家族统一样式版）
+ * 🎨 深度融合 ai-media-check / ip-info 紫色强调色体系
  * ==========================================
  */
 export default async function(ctx) {
@@ -9,23 +9,25 @@ export default async function(ctx) {
   const family = String(ctx.widgetFamily || '').toLowerCase();
   const isLarge = family === 'systemlarge' || family === 'systemextralarge';
 
-  // ── 2. 标准色彩令牌系统 (恢复灰底白卡) ──
+  // ── 2. 家族标准色彩令牌系统 ──
   const C = {
-    bg:       { light: '#F2F2F7', dark: '#000000' }, 
-    panel:    { light: '#FFFFFF', dark: '#1C1C1E' }, 
+    bg:       { light: '#F2F2F7', dark: '#000000' }, // 灰质底色
+    panel:    { light: '#FFFFFF', dark: '#1C1C1E' }, // 纯白卡片
     text:     { light: '#111114', dark: '#F7F7F8' },
     dim:      { light: '#7B7B84', dark: '#85858E' }, 
     chip:     { light: '#ECECF1', dark: '#202025' },
+    
+    // 🌟 核心家族强调色 (Signature Purple)
     accent:   { light: '#7446D8', dark: '#B765FF' }, 
     
-    // 🌟 设计师特调专属色彩
-    lunarBg:  { light: '#FFF8E1', dark: '#3E2C1B' }, 
-    lunarTxt: { light: '#A67C00', dark: '#E5C07B' }, 
+    // 🌟 农历行专属：10% 透明度的微紫底色，极具现代高级感
+    lunarBg:  { light: '#7446D81A', dark: '#B765FF1A' }, 
+    
+    // 语义色彩 (保留给宜忌和倒计时分类)
     yiBg:     { light: '#E8F5E9', dark: '#1B3E20' }, 
     yiTxt:    { light: '#2E7D32', dark: '#66BB6A' }, 
     jiBg:     { light: '#FFEBEE', dark: '#4A1C1C' }, 
     jiTxt:    { light: '#C62828', dark: '#EF5350' },
-    
     ok:       { light: '#2F9E58', dark: '#C7FF18' }, 
     warn:     { light: '#FF9500', dark: '#FFD60A' }, 
     fail:     { light: '#D64545', dark: '#FF626A' }  
@@ -35,7 +37,8 @@ export default async function(ctx) {
   const layout = {
     padding:    isLarge ? [10, 12, 10, 12] : [12, 12, 12, 12], 
     groupPad:   isLarge ? [8, 10] : [8, 10],
-    titleFz:    13,
+    titleFz:    15, // 放大顶部日期字号，建立清晰的视觉锚点
+    titleIcz:   16, // 配套的图标尺寸
     lunarFz:    11, 
     listFz:     11,
     tagFz:      11,
@@ -237,7 +240,7 @@ export default async function(ctx) {
           case "legal": color = C.fail; break;
           case "term": color = C.ok; break;
           case "folk": color = C.warn; break;
-          case "other": color = C.accent; break;
+          case "other": color = C.accent; break; // 现代/西方节日本身就是强调紫
           default: color = C.text;
         }
         rows.push({
@@ -354,7 +357,7 @@ export default async function(ctx) {
 
   // ---------- 构建三张卡片 ----------
 
-  // 🌟 顶部卡片 (移除了导致报错的 alignItems: "stretch")
+  // 🌟 顶部卡片 (强视觉锚点 + 赛博紫元素注入)
   const topCard = {
     type: "stack", 
     direction: "column", 
@@ -364,21 +367,23 @@ export default async function(ctx) {
     padding: layout.groupPad,
     children: [
       { 
-        type: "stack", direction: "row", alignItems: "center", justifyContent: "center",
+        type: "stack", direction: "row", alignItems: "center", justifyContent: "center", gap: 6,
         children: [
           { type: "spacer" },
-          { type: "text", text: `📅 ${Y}年${M}月${D}日 周${W}`, font: { size: layout.titleFz, weight: "bold" }, textColor: C.text },
+          // 增加标志性的紫色小图标
+          { type: "image", src: "sf-symbol:calendar", color: C.accent, width: layout.titleIcz, height: layout.titleIcz },
+          { type: "text", text: `${Y}年${M}月${D}日 周${W}`, font: { size: layout.titleFz, weight: "bold" }, textColor: C.text },
           { type: "spacer" }
         ]
       },
       {
         type: "stack", direction: "row", alignItems: "center", justifyContent: "center",
-        padding: [6, 8], backgroundColor: C.lunarBg, borderRadius: 6,
+        padding: [6, 8], backgroundColor: C.lunarBg, borderRadius: 6, // 10% 优雅浅紫底
         children: [
           { type: "spacer" },
           { 
             type: "text", text: `${yearGZ} · ${monthGZ} · ${dayGZ} · ${hourGZ} · ${lunar.cn} (${lunar.ani})`, 
-            font: { size: layout.lunarFz, weight: "bold" }, textColor: C.lunarTxt
+            font: { size: layout.lunarFz, weight: "bold" }, textColor: C.accent // 纯正家族强调紫
           },
           { type: "spacer" }
         ]
