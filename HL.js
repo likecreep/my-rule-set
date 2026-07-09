@@ -1,14 +1,13 @@
 /**
- * 📅 日历 / 老黄历 (Tokyo Night 黑曜石/白瓷 完美真·无界版)
- * 🎨 击碎底层省略号Bug / 海绵布局压榨空白 / 绝对坚固的极细分割线
+ * 📅 日历 / 老黄历 (Tokyo Night 黑曜石/白瓷 算力无界版)
+ * 🎨 植入 Almanac 切字引擎 / 彻底消灭省略号 / 像素级绝对对齐
  * ==========================================
  */
 export default async function(ctx) {
-  // ── 1. 动态侦测小组件尺寸 ──
   const family = String(ctx.widgetFamily || '').toLowerCase();
   const isLarge = family === 'systemlarge' || family === 'systemextralarge';
 
-  // ── 2. Tokyo Night 黑曜石双态色彩令牌系统 ──
+  // ── 1. Tokyo Night 黑曜石双态色彩令牌 ──
   const C = {
     bg:       { light: '#EEF1FF', dark: '#16161E' }, 
     panel:    { light: '#FFFFFF', dark: '#000000' }, 
@@ -23,38 +22,31 @@ export default async function(ctx) {
     lunarBg:  { light: '#7446D81A', dark: '#B765FF1A' }, 
     yiBg:     { light: '#10B9811A', dark: '#C7FF181A' }, 
     jiBg:     { light: '#FF47571A', dark: '#FF2A6D1A' }, 
+    transparent: '#00000000'
   };
 
-  // ── 3. 响应式布局尺寸引擎 ──
+  // ── 2. 响应式布局尺寸引擎 ──
   const L = {
-    pad:        isLarge ? [20, 24] : [14, 16], // 卡片内边距
-    mainGap:    isLarge ? 14 : 8,              // 行与行之间的全局间距
-    
-    // 顶栏尺寸
+    pad:        isLarge ? [20, 24] : [14, 16],
+    mainGap:    isLarge ? 14 : 8,              
     headFz:     isLarge ? 16 : 13,
     headIcz:    isLarge ? 18 : 14,
     astroFz:    isLarge ? 14 : 11,
     astroIcz:   isLarge ? 14 : 12,
-    
-    // 巨幅日期块
     weekFz:     isLarge ? 13 : 10,
     dayFz:      isLarge ? 42 : 24,
     cnFz:       isLarge ? 13 : 10,
     lunarPad:   isLarge ? [10, 16] : [6, 10],
-    
-    // 右侧干支与宜忌
-    rightGap:   isLarge ? 8 : 4,
+    rightGap:   isLarge ? 6 : 4,
     gzFz:       isLarge ? 14 : 11,
     shichenFz:  isLarge ? 13 : 10,
     tagFz:      isLarge ? 11 : 9,
-    tagIcz:     isLarge ? 16 : 14,
+    tagIcz:     isLarge ? 18 : 16, // 统一锚点宽度，保证绝对左对齐
     txtFz:      isLarge ? 14 : 11,
     chongFz:    isLarge ? 13 : 10,
-    chongIcz:   isLarge ? 14 : 11,
-    
-    // 底部节气节日
+    chongIcz:   isLarge ? 13 : 11,
     botFz:      isLarge ? 13 : 10,
-    botIcz:     isLarge ? 14 : 10,
+    botIcz:     isLarge ? 14 : 11,
     botGap:     isLarge ? 6 : 3
   };
 
@@ -63,7 +55,7 @@ export default async function(ctx) {
   const WEEK = "日一二三四五六"[now.getDay()];
   const P = n => n < 10 ? `0${n}` : n;
 
-  // 🌟 星座计算
+  // 星座计算
   const astro = "摩羯水瓶双鱼白羊金牛双子巨蟹狮子处女天秤天蝎射手摩羯".substr(M * 2 - (D < [20,19,21,21,21,22,23,23,23,23,22,22][M - 1] ? 2 : 0), 2) + "座";
 
   // ---------- 农历核心 ----------
@@ -142,11 +134,11 @@ export default async function(ctx) {
     apiData = findDateData(json) || {};
   } catch (e) {}
 
-  const getVal = (...keys) => { for(let k of keys) if(apiData[k]) return apiData[k]; return ""; };
-  const rawYi = getVal("yi", "Yi", "suit").replace(/\./g, " ").trim();
-  const rawJi = getVal("ji", "Ji", "avoid").replace(/\./g, " ").trim();
+  const getVal = (...keys) => { for(let k of keys) if(apiData[k] && apiData[k] !== '') return String(apiData[k]); return ""; };
+  const rawYi = getVal("yi", "Yi", "suit", "appropriate").replace(/[.。]/g, " ").trim();
+  const rawJi = getVal("ji", "Ji", "avoid", "taboo").replace(/[.。]/g, " ").trim();
 
-  // 🌟 运势打分
+  // 运势打分
   const score = parseInt(getVal("score", "Score", "pingfen", "star")) || 4;
   const starStr = "⭐".repeat(score);
 
@@ -201,7 +193,55 @@ export default async function(ctx) {
   if (!finalHolidayText) finalHolidayText = "近 90 天无法定长假";
   if (todayHoliday) finalHolidayText = `今日${todayHoliday} | 距 ${finalHolidayText}`;
 
-  // 🌟 修复后的绝对物理分割线（无视弹性，死守高度 0.5px）
+
+  // ── 🌟 杀手锏：Almanac.js 切字渲染算法 (绕过底层换行 Bug) ──
+  const splitTextToLines = (str, maxW) => {
+    if (!str) return [];
+    let lines = [], line = "", w = 0;
+    for (const token of (str.match(/[\d\/a-zA-Z.\-]+|./gu) || [])) {
+      const tw = [...token].reduce((s, c) => s + (c.charCodeAt(0) > 255 ? 2 : 1.1), 0);
+      if (w + tw > maxW) {
+        lines.push(line.replace(/^[，\s]+|[，\s]+$/g, ""));
+        line = token;
+        w = tw;
+      } else {
+        line += token;
+        w += tw;
+      }
+    }
+    if (line) lines.push(line.replace(/^[，\s]+|[，\s]+$/g, ""));
+    return lines;
+  };
+
+  // 生成多行果冻标签结构
+  const buildJellyRows = (rawStr, label, tagBgColor, tagTextColor, L, isChongsha = false) => {
+    if (!rawStr) return [];
+    // 为中大号动态分配截断宽度
+    const lines = splitTextToLines(rawStr, isLarge ? 36 : 46);
+    return lines.map((lineStr, idx) => ({
+      type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
+      children: [
+        idx === 0
+          ? (isChongsha
+              // 冲煞首行：带图标的透明对齐容器
+              ? { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:flame.fill', color: tagTextColor, width: L.chongIcz, height: L.chongIcz }] }
+              // 宜忌首行：发光果冻标签
+              : { type: 'stack', width: L.tagIcz, alignItems: 'center', backgroundColor: tagBgColor, borderRadius: 4, padding: [1, 0], children: [{ type: 'text', text: label, font: { size: L.tagFz, weight: 'heavy' }, textColor: tagTextColor }] }
+            )
+          // 其它行：塞入一个看不见的占位透明容器，保证文字边缘像素级垂直对齐！
+          : { type: 'stack', width: L.tagIcz, height: 1 }, 
+        
+        // 由于这里强制切成单行，我们只要告诉系统 maxLines: 1，系统就不会触发折叠 BUG！
+        { type: 'text', text: lineStr, font: { size: isChongsha ? L.chongFz : L.txtFz, weight: 'medium' }, textColor: C.dim, maxLines: 1, flex: 1 }
+      ]
+    }));
+  };
+
+  const yiRows = buildJellyRows(rawYi || "诸事皆宜", "宜", C.yiBg, C.ok, L, false);
+  const jiRows = buildJellyRows(rawJi || "诸事无忌", "忌", C.jiBg, C.fail, L, false);
+  const chongshaRows = buildJellyRows(chongshaInfo, "", C.transparent, C.fail, L, true);
+
+  // 🌟 修复版的物理分割线
   const Hairline = () => ({
     type: 'stack', height: 0.5, backgroundColor: C.hairline
   });
@@ -210,11 +250,10 @@ export default async function(ctx) {
     type: 'widget', 
     url: 'calshow://', 
     backgroundColor: C.bg, 
-    // 外层双重 Padding 设为 0
+    // 外层双重 Padding 强制设为 0，抢夺屏幕边缘空间
     padding: 0, 
     children: [
       {
-        // 🌟 核心主容器：使用固定的 gap 分配基础间距，不让弹簧捣乱
         type: 'stack', direction: 'column', flex: 1, gap: L.mainGap,
         backgroundColor: C.panel, 
         borderWidth: 0.5,        
@@ -251,7 +290,7 @@ export default async function(ctx) {
                   { type: 'text', text: obj.cn, font: { size: L.cnFz, weight: 'bold' }, textColor: C.accent, maxLines: 1 } 
                 ]
               },
-              // 右侧：干支与宜忌冲煞
+              // 右侧：干支与宜忌冲煞 (已全部替换为算法切割阵列)
               {
                 type: 'stack', direction: 'column', gap: L.rightGap, flex: 1, 
                 children: [
@@ -263,37 +302,16 @@ export default async function(ctx) {
                       { type: 'text', text: shichenStr, font: { size: L.shichenFz, weight: 'bold' }, textColor: C.dim, minimumScaleFactor: 0.8 }
                     ]
                   },
-                  {
-                    type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
-                    children: [
-                      { type: 'stack', width: L.tagIcz, alignItems: 'center', backgroundColor: C.yiBg, borderRadius: 4, padding: [1, 0], children: [{ type: 'text', text: "宜", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.ok }] },
-                      // 🌟 杀手级修复：彻底删除 minimumScaleFactor，允许最多换 10 行！
-                      { type: 'text', text: rawYi || "诸事皆宜", font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, maxLines: 10, flex: 1 } 
-                    ]
-                  },
-                  {
-                    type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
-                    children: [
-                      { type: 'stack', width: L.tagIcz, alignItems: 'center', backgroundColor: C.jiBg, borderRadius: 4, padding: [1, 0], children: [{ type: 'text', text: "忌", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.fail }] },
-                      // 🌟 杀手级修复：彻底删除 minimumScaleFactor，允许最多换 10 行！
-                      { type: 'text', text: rawJi || "诸事无忌", font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, maxLines: 10, flex: 1 }
-                    ]
-                  },
-                  {
-                    type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
-                    children: [
-                      { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:flame.fill', color: C.fail, width: L.chongIcz, height: L.chongIcz }] },
-                      // 🌟 删除 minimumScaleFactor，最高 2 行
-                      { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 2 }
-                    ]
-                  }
+                  // 🌟 强行拆解的多行数组，直接展开。彻底消灭省略号！
+                  ...yiRows,
+                  ...jiRows,
+                  ...chongshaRows
                 ]
               }
             ]
           },
           
-          // 🌟 海绵布局核心：只有这里放一个弹簧！
-          // 大号组件多余的空白全部被吸收到这里，把底部区狠狠压在下面！
+          // 🌟 海绵布局：整个组件唯一的一个空间吸收弹簧
           { type: 'spacer' }, 
           Hairline(),
 
@@ -305,16 +323,14 @@ export default async function(ctx) {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
                   { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:leaf.fill', color: C.ok, width: L.botIcz, height: L.botIcz }] },
-                  // 🌟 删除 minimumScaleFactor
-                  { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, maxLines: 2, flex: 1 }
+                  { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, maxLines: 1, flex: 1 }
                 ]
               },
               {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
                   { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:paperplane.fill', color: C.warn, width: L.botIcz, height: L.botIcz }] },
-                  // 🌟 删除 minimumScaleFactor
-                  { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, maxLines: 2, flex: 1 }
+                  { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, maxLines: 1, flex: 1 }
                 ]
               }
             ]
