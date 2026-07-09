@@ -56,4 +56,227 @@ export default async function(ctx) {
       const lYear = i, leap = this.info[lYear-1900] & 0xf; 
       let isLeap = false;
       for(i=1; i<13 && offset>0; i++) {
-        if(leap>0 && i==(leap+1) && !isLeap) { --i; isLeap=true; temp = (this.info[lYear-1900] & 0x10000) ?
+        if(leap>0 && i==(leap+1) && !isLeap) { --i; isLeap=true; temp = (this.info[lYear-1900] & 0x10000) ? 30 : 29; } 
+        else temp = (this.info[lYear-1900] & (0x10000 >> i)) ? 30 : 29;
+        if(isLeap && i==(leap+1)) isLeap = false; 
+        offset -= temp;
+      }
+      if(offset==0 && leap>0 && i==leap+1) if(isLeap) isLeap=false; else { isLeap=true; --i; }
+      if(offset<0) { offset+=temp; i--; }
+      const lD = offset + 1, tId = m * 2 - (d < this.getTerm(y, m * 2 - 1) ? 2 : 1);
+      const gz = "甲乙丙丁戊己庚辛壬癸"[(lYear-4)%10] + "子丑寅卯辰巳午未申酉戌亥"[(lYear-4)%12];
+      const ani = "鼠牛虎兔龙蛇马羊猴鸡狗猪"[(lYear-4)%12];
+      const cnMonth = `${isLeap?"闰":""}${["正","二","三","四","五","六","七","八","九","十","冬","腊"][i-1]}月`;
+      const cnDay = lD==10?"初十":lD==20?"二十":lD==30?"三十":["初","十","廿","卅"][Math.floor(lD/10)] + ["日","一","二","三","四","五","六","七","八","九","十"][lD%10];
+      return { gz, ani, cn: `${cnMonth}${cnDay}`, term: (this.getTerm(y, tId+1) == d) ? this.termNames[tId] : "" };
+    }
+  };
+
+  const allTerms = [];
+  [-1, 0, 1].forEach(offset => {
+    for(let i=1; i<=24; i++) allTerms.push({ name: Lunar.termNames[i-1], date: new Date(Y + offset, Math.floor((i-1)/2), Lunar.getTerm(Y + offset, i)) });
+  });
+
+  const todayMs = new Date(Y, M-1, D).getTime();
+  let currentTerm = "", upcomingTerms = [];
+  for (let i = 0; i < allTerms.length; i++) {
+    const diff = Math.round((allTerms[i].date.getTime() - todayMs) / 86400000);
+    if (diff >= 0) {
+      currentTerm = diff === 0 ? allTerms[i].name : allTerms[i-1].name;
+      const startIdx = diff === 0 ? i + 1 : i;
+      upcomingTerms = allTerms.slice(startIdx, startIdx + 5).map(t => `${t.name} ${Math.round((t.date.getTime() - todayMs) / 86400000)}天`);
+      break;
+    }
+  }
+
+  const obj = Lunar.parse(Y, M, D);
+  const shichenStr = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"][Math.floor((now.getHours() + 1) % 24 / 2)] + "时";
+  let apiData = {};
+
+  try {
+    const resp = await ctx.http.get(`https://raw.githubusercontent.com/zqzess/openApiData/main/calendar_new/${Y}/${Y}${P(M)}.json`, { timeout: 8000 });
+    const json = JSON.parse(await resp.text());
+    const patterns = [`${Y}-${P(M)}-${P(D)}`, `${Y}-${M}-${D}`, `${Y}/${P(M)}/${P(D)}`, `${Y}/${M}/${D}`, `${Y}${P(M)}${P(D)}`];
+    const findDateData = (data) => {
+      if (!data || typeof data !== 'object') return null;
+      for (const key in data) {
+        const val = data[key];
+        if (!val) continue;
+        if (patterns.some(p => String(key).includes(p))) return val;
+        if (typeof val === 'object') {
+          const dStr = String(val.date || val.day || val.gregorian || val.oDate || "");
+          if (patterns.some(p => dStr.includes(p))) return val;
+          if (val.day == D && (val.month == M || (!val.month && !val.year))) return val;
+          const res = findDateData(val);
+          if (res) return res;
+        }
+      }
+      return null;
+    };
+    apiData = findDateData(json) || {};
+  } catch (e) {}
+
+  const getVal = (...keys) => { for(let k of keys) if(apiData[k]) return apiData[k]; return ""; };
+  const rawYi = getVal("yi", "Yi", "suit").replace(/\./g, " ").trim();
+  const rawJi = getVal("ji", "Ji", "avoid").replace(/\./g, " ").trim();
+
+  const stems = "甲乙丙丁戊己庚辛壬癸";
+  const branches = "子丑寅卯辰巳午未申酉戌亥";
+  const animals = "鼠牛虎兔龙蛇马羊猴鸡狗猪";
+
+  let dOffset = Math.floor((Date.UTC(Y, M-1, D) - Date.UTC(2024, 0, 1)) / 86400000) % 60;
+  if (dOffset < 0) dOffset += 60;
+  
+  const rawGzMonth = getVal("gzMonth", "gz_month") || "";
+  const rawGzDate = getVal("gzDate", "gz_day") || (stems[dOffset % 10] + branches[dOffset % 12]);
+  const ganzhiFull = rawGzMonth ? `${obj.gz}(${obj.ani})年 ${rawGzMonth}月 ${rawGzDate}日` : `${obj.gz}(${obj.ani})年 ${rawGzDate}日`;
+
+  const cIndex = (dOffset + 54) % 60; 
+  const dZhi = dOffset % 12;
+  const chongshaInfo = `冲${animals[(dZhi + 6) % 12]}(${stems[cIndex % 10]}${branches[cIndex % 12]})煞${["南","东","北","西"][dZhi % 4]}`;
+
+  let todayHoliday = getVal("holiday", "festival", "jiejiari");
+  if (!todayHoliday && apiData.type && apiData.type.name) {
+      const tName = apiData.type.name;
+      if (tName !== "工作日" && tName !== "周末" && tName !== "休息日") todayHoliday = tName;
+  }
+
+  const targetHolidays = [
+    { name: "元旦", match: (m, d, l, nL) => m === 1 && d === 1 },
+    { name: "春节", match: (m, d, l, nL) => l.cn === "正月初一" },
+    { name: "清明", match: (m, d, l, nL) => l.term === "清明" },
+    { name: "劳动", match: (m, d, l, nL) => m === 5 && d === 1 },
+    { name: "端午", match: (m, d, l, nL) => l.cn === "五月初五" },
+    { name: "中秋", match: (m, d, l, nL) => l.cn === "八月十五" },
+    { name: "国庆", match: (m, d, l, nL) => m === 10 && d === 1 }
+  ];
+
+  let upcomingHolidays = [];
+  let foundHolidays = new Set();
+  for (let i = 1; i <= 365; i++) {
+    let tempDate = new Date(todayMs + i * 86400000);
+    let ty = tempDate.getFullYear(), tm = tempDate.getMonth() + 1, td = tempDate.getDate();
+    let tl = Lunar.parse(ty, tm, td);
+    for (let h of targetHolidays) {
+      if (!foundHolidays.has(h.name) && h.match(tm, td, tl, tl)) {
+        upcomingHolidays.push(`${h.name} ${i}天`);
+        foundHolidays.add(h.name);
+      }
+    }
+    if (upcomingHolidays.length >= 5) break; 
+  }
+
+  let finalHolidayText = upcomingHolidays.join(" · ");
+  if (todayHoliday) finalHolidayText = `今日${todayHoliday} | 距 ${finalHolidayText}`;
+
+  // 🌟 顶栏专属大结构分割线
+  const TopHairline = () => ({
+    type: 'stack', direction: 'row', height: 1, backgroundColor: C.hairline,
+    children: [ { type: 'spacer' } ]
+  });
+
+  return {
+    type: 'widget', 
+    url: 'calshow://', 
+    backgroundColor: C.bg, 
+    // 外层预留留白，确保卡片完美悬浮
+    padding: [12, 12, 12, 12], 
+    children: [
+      {
+        // 🌟 核心升级：包装进带有物理边缘的统一仪表盘卡片
+        type: 'stack', direction: 'column', flex: 1, gap: 6,
+        backgroundColor: C.panel, 
+        borderRadius: 8, 
+        borderWidth: 0.5,        
+        borderColor: C.border,
+        padding: [10, 12],
+        children: [
+          // 第 1 行：公历与时辰
+          { 
+            type: 'stack', direction: 'row', alignItems: 'center', gap: 4, 
+            children: [
+              { type: 'image', src: 'sf-symbol:calendar.circle.fill', color: C.accent, width: 14, height: 14 }, 
+              { type: 'text', text: `${Y}年${M}月${D}日`, font: { size: 13, weight: 'heavy' }, textColor: C.text, minimumScaleFactor: 0.8 },
+              { type: 'spacer' },
+              { type: 'text', text: shichenStr, font: { size: 11, weight: 'bold' }, textColor: C.dim, minimumScaleFactor: 0.8 }
+            ]
+          },
+          
+          // 🔪 极细分割线
+          TopHairline(),
+          
+          // 第 2 行：老黄历核心信息区
+          {
+            type: 'stack', direction: 'row', alignItems: 'center', gap: 8, 
+            children: [
+              // 左侧：巨幅日期与星期
+              {
+                type: 'stack', direction: 'column', alignItems: 'center', justifyContent: 'center',
+                backgroundColor: C.chip, borderRadius: 10, padding: [4, 4], 
+                children: [
+                  { type: 'text', text: `周${WEEK}`, font: { size: 10, weight: 'bold' }, textColor: C.accent, maxLines: 1, minimumScaleFactor: 0.6 }, 
+                  { type: 'spacer', length: 1 },
+                  { type: 'text', text: `${D}`, font: { size: 22, weight: 'heavy', family: 'rounded' }, textColor: C.text, maxLines: 1, minimumScaleFactor: 0.6 }, 
+                  { type: 'spacer', length: 1 },
+                  { type: 'text', text: obj.cn, font: { size: 10, weight: 'bold' }, textColor: C.accent, maxLines: 1, minimumScaleFactor: 0.6 } 
+                ]
+              },
+              // 右侧：干支与宜忌冲煞
+              {
+                type: 'stack', direction: 'column', gap: 3, flex: 1, 
+                children: [
+                  { type: 'text', text: `${ganzhiFull} · ${obj.term ? `今日${obj.term}` : `当前${currentTerm}`}`, font: { size: 11, weight: 'bold' }, textColor: C.accent, minimumScaleFactor: 0.6 },
+                  {
+                    type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
+                    children: [
+                      // 🌟 宜：改为发光果冻标签
+                      { type: 'stack', width: 16, alignItems: 'center', backgroundColor: C.yiBg, borderRadius: 4, padding: [1, 0], children: [{ type: 'text', text: "宜", font: { size: 9, weight: 'heavy' }, textColor: C.ok }] },
+                      { type: 'text', text: rawYi || "诸事皆宜", font: { size: 11, weight: 'medium' }, textColor: C.dim, maxLines: 3, flex: 1, minimumScaleFactor: 0.7 } 
+                    ]
+                  },
+                  {
+                    type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
+                    children: [
+                      // 🌟 忌：改为发光果冻标签
+                      { type: 'stack', width: 16, alignItems: 'center', backgroundColor: C.jiBg, borderRadius: 4, padding: [1, 0], children: [{ type: 'text', text: "忌", font: { size: 9, weight: 'heavy' }, textColor: C.fail }] },
+                      { type: 'text', text: rawJi || "诸事无忌", font: { size: 11, weight: 'medium' }, textColor: C.dim, maxLines: 3, flex: 1, minimumScaleFactor: 0.7 }
+                    ]
+                  },
+                  {
+                    type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
+                    children: [
+                      { type: 'stack', width: 16, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:flame.fill', color: C.fail, width: 11, height: 11 }] },
+                      { type: 'text', text: chongshaInfo, font: { size: 11, weight: 'medium' }, textColor: C.dim, minimumScaleFactor: 0.7 },
+                      { type: 'spacer' }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          
+          // 第 3 行：节气与节假日底部气泡
+          {
+            type: 'stack', direction: 'column', gap: 6, padding: [7, 8], backgroundColor: C.chip, borderRadius: 8,
+            children: [
+              {
+                type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
+                children: [
+                  { type: 'image', src: 'sf-symbol:leaf.fill', color: C.ok, width: 11, height: 11 },
+                  { type: 'text', text: upcomingTerms.join(" · "), font: { size: 10, weight: 'medium' }, textColor: C.dim, maxLines: 3, flex: 1, minimumScaleFactor: 0.5 }
+                ]
+              },
+              {
+                type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
+                children: [
+                  { type: 'image', src: 'sf-symbol:paperplane.fill', color: C.warn, width: 11, height: 11 },
+                  { type: 'text', text: finalHolidayText, font: { size: 10, weight: 'medium' }, textColor: C.dim, maxLines: 3, flex: 1, minimumScaleFactor: 0.5 }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  };
+}
