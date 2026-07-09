@@ -187,4 +187,140 @@ export default async function(ctx) {
   for (let i = 1; i <= 90; i++) {
     let tempDate = new Date(todayMs + i * 86400000);
     let ty = tempDate.getFullYear(), tm = tempDate.getMonth() + 1, td = tempDate.getDate();
-    let tl = Lunar.parse(ty, tm,
+    let tl = Lunar.parse(ty, tm, td);
+    for (let h of targetHolidays) {
+      if (!foundHolidays.has(h.name) && h.match(tm, td, tl)) {
+        upcomingHolidays.push(`${h.name} ${i}天`);
+        foundHolidays.add(h.name);
+      }
+    }
+    if (upcomingHolidays.length >= 3) break; 
+  }
+
+  let finalHolidayText = upcomingHolidays.join(" · ");
+  if (!finalHolidayText) finalHolidayText = "近 90 天无法定长假";
+  if (todayHoliday) finalHolidayText = `今日${todayHoliday} | 距 ${finalHolidayText}`;
+
+  // 🌟 修复后的绝对物理分割线（无视弹性，死守高度 0.5px）
+  const Hairline = () => ({
+    type: 'stack', height: 0.5, backgroundColor: C.hairline
+  });
+
+  return {
+    type: 'widget', 
+    url: 'calshow://', 
+    backgroundColor: C.bg, 
+    // 外层双重 Padding 设为 0
+    padding: 0, 
+    children: [
+      {
+        // 🌟 核心主容器：使用固定的 gap 分配基础间距，不让弹簧捣乱
+        type: 'stack', direction: 'column', flex: 1, gap: L.mainGap,
+        backgroundColor: C.panel, 
+        borderWidth: 0.5,        
+        borderColor: C.border,
+        padding: L.pad,
+        children: [
+          // === 第 1 行：公历与星座 ===
+          { 
+            type: 'stack', direction: 'row', alignItems: 'center', gap: 4, 
+            children: [
+              { type: 'image', src: 'sf-symbol:calendar.circle.fill', color: C.accent, width: L.headIcz, height: L.headIcz }, 
+              { type: 'text', text: `${Y}年${M}月${D}日`, font: { size: L.headFz, weight: 'heavy' }, textColor: C.text, minimumScaleFactor: 0.8 },
+              { type: 'spacer' },
+              { type: 'image', src: 'sf-symbol:sparkles', color: C.warn, width: L.astroIcz, height: L.astroIcz },
+              { type: 'text', text: astro, font: { size: L.astroFz, weight: 'bold' }, textColor: C.dim, minimumScaleFactor: 0.8 }
+            ]
+          },
+          
+          Hairline(),
+          
+          // === 第 2 行：老黄历核心信息区 ===
+          {
+            type: 'stack', direction: 'row', alignItems: 'center', gap: 12, 
+            children: [
+              // 左侧：巨幅日期
+              {
+                type: 'stack', direction: 'column', alignItems: 'center', justifyContent: 'center',
+                backgroundColor: C.lunarBg, borderRadius: 10, padding: L.lunarPad, 
+                children: [
+                  { type: 'text', text: `周${WEEK}`, font: { size: L.weekFz, weight: 'bold' }, textColor: C.accent, maxLines: 1 }, 
+                  { type: 'spacer', length: 2 },
+                  { type: 'text', text: `${D}`, font: { size: L.dayFz, weight: 'heavy', family: 'rounded' }, textColor: C.text, maxLines: 1 }, 
+                  { type: 'spacer', length: 2 },
+                  { type: 'text', text: obj.cn, font: { size: L.cnFz, weight: 'bold' }, textColor: C.accent, maxLines: 1 } 
+                ]
+              },
+              // 右侧：干支与宜忌冲煞
+              {
+                type: 'stack', direction: 'column', gap: L.rightGap, flex: 1, 
+                children: [
+                  {
+                    type: 'stack', direction: 'row', alignItems: 'center',
+                    children: [
+                      { type: 'text', text: `${ganzhiFull} · ${obj.term ? `今日${obj.term}` : `当前${currentTerm}`}`, font: { size: L.gzFz, weight: 'bold' }, textColor: C.accent, minimumScaleFactor: 0.8 },
+                      { type: 'spacer' },
+                      { type: 'text', text: shichenStr, font: { size: L.shichenFz, weight: 'bold' }, textColor: C.dim, minimumScaleFactor: 0.8 }
+                    ]
+                  },
+                  {
+                    type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
+                    children: [
+                      { type: 'stack', width: L.tagIcz, alignItems: 'center', backgroundColor: C.yiBg, borderRadius: 4, padding: [1, 0], children: [{ type: 'text', text: "宜", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.ok }] },
+                      // 🌟 杀手级修复：彻底删除 minimumScaleFactor，允许最多换 10 行！
+                      { type: 'text', text: rawYi || "诸事皆宜", font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, maxLines: 10, flex: 1 } 
+                    ]
+                  },
+                  {
+                    type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
+                    children: [
+                      { type: 'stack', width: L.tagIcz, alignItems: 'center', backgroundColor: C.jiBg, borderRadius: 4, padding: [1, 0], children: [{ type: 'text', text: "忌", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.fail }] },
+                      // 🌟 杀手级修复：彻底删除 minimumScaleFactor，允许最多换 10 行！
+                      { type: 'text', text: rawJi || "诸事无忌", font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, maxLines: 10, flex: 1 }
+                    ]
+                  },
+                  {
+                    type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
+                    children: [
+                      { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:flame.fill', color: C.fail, width: L.chongIcz, height: L.chongIcz }] },
+                      // 🌟 删除 minimumScaleFactor，最高 2 行
+                      { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 2 }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          
+          // 🌟 海绵布局核心：只有这里放一个弹簧！
+          // 大号组件多余的空白全部被吸收到这里，把底部区狠狠压在下面！
+          { type: 'spacer' }, 
+          Hairline(),
+
+          // === 第 3 行：节气与节假日区 ===
+          {
+            type: 'stack', direction: 'column', gap: L.botGap, 
+            children: [
+              {
+                type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
+                children: [
+                  { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:leaf.fill', color: C.ok, width: L.botIcz, height: L.botIcz }] },
+                  // 🌟 删除 minimumScaleFactor
+                  { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, maxLines: 2, flex: 1 }
+                ]
+              },
+              {
+                type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
+                children: [
+                  { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:paperplane.fill', color: C.warn, width: L.botIcz, height: L.botIcz }] },
+                  // 🌟 删除 minimumScaleFactor
+                  { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, maxLines: 2, flex: 1 }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  };
+}
