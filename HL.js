@@ -1,6 +1,6 @@
 /**
- * 📅 日历 / 老黄历 (Tokyo Night 黑曜石/白瓷 响应式无界版)
- * 🎨 完美恢复分割线 / 引入大号组件响应式字号 / 彻底解放多行换行
+ * 📅 日历 / 老黄历 (Tokyo Night 黑曜石/白瓷 响应式完美换行版)
+ * 🎨 引入响应式尺寸引擎 / 彻底拔除防换行钉子 / 极限压榨间距释放空间
  * ==========================================
  */
 export default async function(ctx) {
@@ -25,42 +25,42 @@ export default async function(ctx) {
     jiBg:     { light: '#FF47571A', dark: '#FF2A6D1A' }, 
   };
 
-  // ── 3. 响应式布局尺寸引擎 (彻底解决大号空、中号挤的问题) ──
+  // ── 3. 响应式布局引擎 (完美解决大号空、中号挤的核心武器) ──
   const L = {
-    pad:        isLarge ? [16, 20] : [10, 14], 
+    // 🌟 中号极限压榨内边距，大号舒展
+    pad:        isLarge ? [16, 20] : [10, 12], 
     
-    // 顶栏尺寸
     headFz:     isLarge ? 16 : 13,
     headIcz:    isLarge ? 18 : 14,
     astroFz:    isLarge ? 13 : 11,
     astroIcz:   isLarge ? 14 : 12,
     
-    // 巨幅日期块
+    // 大号巨幅日期展示
     weekFz:     isLarge ? 14 : 10,
-    dayFz:      isLarge ? 46 : 24,
+    dayFz:      isLarge ? 46 : 26, 
     cnFz:       isLarge ? 14 : 10,
     lunarPad:   isLarge ? [12, 16] : [6, 10],
     
-    // 右侧干支与宜忌
     gzFz:       isLarge ? 14 : 11,
-    shichenFz:  isLarge ? 13 : 10,
+    shichenFz:  isLarge ? 13 : 11,
     tagFz:      isLarge ? 11 : 9,
     tagIcz:     isLarge ? 18 : 14,
+    // 🌟 正文内容字号
     txtFz:      isLarge ? 14 : 11,
     chongFz:    isLarge ? 13 : 10,
     chongIcz:   isLarge ? 14 : 11,
     
-    // 底部节气节日
     botFz:      isLarge ? 13 : 10,
-    botIcz:     isLarge ? 14 : 10,
+    botIcz:     isLarge ? 14 : 11,
     
-    // 间距体系
-    gapMidRow:  isLarge ? 20 : 12,
-    gapRightCol:isLarge ? 8 : 4,
+    // 🌟 核心：中号压榨分割线上下间距到极小的 4px，把高度全留给换行！
+    gapDiv:     isLarge ? 8 : 4, 
+    gapMidRow:  isLarge ? 16 : 10,
+    gapRightCol:isLarge ? 6 : 3,
     gapBotCol:  isLarge ? 6 : 3,
     
-    // 换行控制
-    maxL:       isLarge ? 6 : 3
+    // 🌟 允许换行的极限行数
+    maxL:       isLarge ? 8 : 4
   };
 
   const now = new Date(Date.now() + (new Date().getTimezoneOffset() + 480) * 60000);
@@ -68,7 +68,7 @@ export default async function(ctx) {
   const WEEK = "日一二三四五六"[now.getDay()];
   const P = n => n < 10 ? `0${n}` : n;
 
-  // 🌟 星座计算
+  // 星座计算
   const astro = "摩羯水瓶双鱼白羊金牛双子巨蟹狮子处女天秤天蝎射手摩羯".substr(M * 2 - (D < [20,19,21,21,21,22,23,23,23,23,22,22][M - 1] ? 2 : 0), 2) + "座";
 
   // ---------- 农历核心 ----------
@@ -151,7 +151,6 @@ export default async function(ctx) {
   const rawYi = getVal("yi", "Yi", "suit").replace(/\./g, " ").trim();
   const rawJi = getVal("ji", "Ji", "avoid").replace(/\./g, " ").trim();
 
-  // 🌟 运势打分
   const score = parseInt(getVal("score", "Score", "pingfen", "star")) || 4;
   const starStr = "⭐".repeat(score);
 
@@ -206,10 +205,9 @@ export default async function(ctx) {
   if (!finalHolidayText) finalHolidayText = "近 90 天无法定长假";
   if (todayHoliday) finalHolidayText = `今日${todayHoliday} | 距 ${finalHolidayText}`;
 
-  // 🌟 修复后的顶栏专属大结构分割线
+  // 🌟 这里是拉通屏幕的关键！内部带有 flex: 1，保证线条横向占满
   const TopHairline = () => ({
     type: 'stack', direction: 'row', height: 1, backgroundColor: C.hairline,
-    // 这里的 spacer 是保证分割线能横向占满屏幕的关键！
     children: [ { type: 'spacer' } ]
   });
 
@@ -217,7 +215,7 @@ export default async function(ctx) {
     type: 'widget', 
     url: 'calshow://', 
     backgroundColor: C.bg, 
-    // 外层双重 Padding 设为 0
+    // 外层强行去 padding，霸占 100% 空间
     padding: 0, 
     children: [
       {
@@ -225,28 +223,29 @@ export default async function(ctx) {
         backgroundColor: C.panel, 
         borderWidth: 0.5,        
         borderColor: C.border,
-        // 内部卡片应用响应式内边距
+        // 内部应用动态压榨的 padding
         padding: L.pad,
         children: [
+          
           // === 第 1 行：公历与星座 ===
           { 
             type: 'stack', direction: 'row', alignItems: 'center', gap: 4, 
             children: [
               { type: 'image', src: 'sf-symbol:calendar.circle.fill', color: C.accent, width: L.headIcz, height: L.headIcz }, 
-              { type: 'text', text: `${Y}年${M}月${D}日`, font: { size: L.headFz, weight: 'heavy' }, textColor: C.text, minimumScaleFactor: 0.8 },
+              { type: 'text', text: `${Y}年${M}月${D}日`, font: { size: L.headFz, weight: 'heavy' }, textColor: C.text },
               { type: 'spacer' },
               { type: 'image', src: 'sf-symbol:sparkles', color: C.warn, width: L.astroIcz, height: L.astroIcz },
-              { type: 'text', text: astro, font: { size: L.astroFz, weight: 'bold' }, textColor: C.dim, minimumScaleFactor: 0.8 }
+              { type: 'text', text: astro, font: { size: L.astroFz, weight: 'bold' }, textColor: C.dim }
             ]
           },
           
-          { type: 'spacer' }, 
+          // 极度克制的固定间距
+          { type: 'spacer', length: L.gapDiv }, 
           TopHairline(),
-          { type: 'spacer' }, 
+          { type: 'spacer', length: L.gapDiv }, 
           
           // === 第 2 行：老黄历核心信息区 ===
           {
-            // 🌟 去掉 flex: 1，让它回归内容原生高度。高度由内部文字的自然换行来撑开！
             type: 'stack', direction: 'row', alignItems: 'center', gap: L.gapMidRow, 
             children: [
               // 左侧：巨幅日期
@@ -268,31 +267,32 @@ export default async function(ctx) {
                   {
                     type: 'stack', direction: 'row', alignItems: 'center',
                     children: [
-                      { type: 'text', text: `${ganzhiFull} · ${obj.term ? `今日${obj.term}` : `当前${currentTerm}`}`, font: { size: L.gzFz, weight: 'bold' }, textColor: C.accent, minimumScaleFactor: 0.8 },
+                      { type: 'text', text: `${ganzhiFull} · ${obj.term ? `今日${obj.term}` : `当前${currentTerm}`}`, font: { size: L.gzFz, weight: 'bold' }, textColor: C.accent },
                       { type: 'spacer' },
-                      { type: 'text', text: shichenStr, font: { size: L.shichenFz, weight: 'bold' }, textColor: C.dim, minimumScaleFactor: 0.8 }
+                      { type: 'text', text: shichenStr, font: { size: L.shichenFz, weight: 'bold' }, textColor: C.dim }
                     ]
                   },
                   {
                     type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
                       { type: 'stack', width: L.tagIcz, alignItems: 'center', backgroundColor: C.yiBg, borderRadius: 4, padding: [1, 0], children: [{ type: 'text', text: "宜", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.ok }] },
-                      // 🌟 解放换行：利用 L.maxL（中号3行，大号6行），遇到长文本尽情往下换！
-                      { type: 'text', text: rawYi || "诸事皆宜", font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, maxLines: L.maxL, flex: 1, minimumScaleFactor: 0.85 } 
+                      // 🌟 王牌解药：删除了 minimumScaleFactor！遇到长字必须换行！
+                      { type: 'text', text: rawYi || "诸事皆宜", font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, maxLines: L.maxL, flex: 1 } 
                     ]
                   },
                   {
                     type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
                       { type: 'stack', width: L.tagIcz, alignItems: 'center', backgroundColor: C.jiBg, borderRadius: 4, padding: [1, 0], children: [{ type: 'text', text: "忌", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.fail }] },
-                      { type: 'text', text: rawJi || "诸事无忌", font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, maxLines: L.maxL, flex: 1, minimumScaleFactor: 0.85 }
+                      // 🌟 王牌解药：删除了 minimumScaleFactor！遇到长字必须换行！
+                      { type: 'text', text: rawJi || "诸事无忌", font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, maxLines: L.maxL, flex: 1 }
                     ]
                   },
                   {
                     type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
                       { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:flame.fill', color: C.fail, width: L.chongIcz, height: L.chongIcz }] },
-                      { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 2, minimumScaleFactor: 0.85 }
+                      { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 2 }
                     ]
                   }
                 ]
@@ -300,9 +300,12 @@ export default async function(ctx) {
             ]
           },
           
+          // 🌟 唯一具有海绵吸力的弹簧（将大号的剩余空间全部吸收，把底部结构推向绝对底端）
           { type: 'spacer' },
+
+          { type: 'spacer', length: L.gapDiv },
           TopHairline(),
-          { type: 'spacer' }, 
+          { type: 'spacer', length: L.gapDiv }, 
 
           // === 第 3 行：节气与节假日区 ===
           {
