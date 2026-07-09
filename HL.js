@@ -237,4 +237,70 @@ export default async function(ctx) {
                     children: [
                       { type: 'text', text: `${ganzhiFull} · ${obj.term ? `今日${obj.term}` : `当前${currentTerm}`}`, font: { size: 10, weight: 'bold' }, textColor: C.accent, minimumScaleFactor: 0.8 },
                       { type: 'spacer' },
-                      { type: 'text', text: shichenStr
+                      { type: 'text', text: shichenStr, font: { size: 10, weight: 'bold' }, textColor: C.dim, minimumScaleFactor: 0.8 }
+                    ]
+                  },
+                  // 宜
+                  {
+                    type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
+                    children: [
+                      // 🌟 width: 14 容器，确保完美绝对左对齐
+                      { type: 'stack', width: 14, alignItems: 'center', backgroundColor: C.yiBg, borderRadius: 4, padding: [1, 0], children: [{ type: 'text', text: "宜", font: { size: 9, weight: 'heavy' }, textColor: C.ok }] },
+                      // 🌟 赐予你多行换行的权利！配合 flex: 1 和 0.85 的智能缩放，无脑铺开！
+                      { type: 'text', text: rawYi || "诸事皆宜", font: { size: 11, weight: 'medium' }, textColor: C.dim, maxLines: 3, flex: 1, minimumScaleFactor: 0.85 } 
+                    ]
+                  },
+                  // 忌
+                  {
+                    type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
+                    children: [
+                      // 🌟 width: 14 容器，确保完美绝对左对齐
+                      { type: 'stack', width: 14, alignItems: 'center', backgroundColor: C.jiBg, borderRadius: 4, padding: [1, 0], children: [{ type: 'text', text: "忌", font: { size: 9, weight: 'heavy' }, textColor: C.fail }] },
+                      { type: 'text', text: rawJi || "诸事无忌", font: { size: 11, weight: 'medium' }, textColor: C.dim, maxLines: 3, flex: 1, minimumScaleFactor: 0.85 }
+                    ]
+                  },
+                  // 冲煞 + 运势
+                  {
+                    type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
+                    children: [
+                      // 🌟 width: 14 容器，确保完美绝对左对齐
+                      { type: 'stack', width: 14, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:flame.fill', color: C.fail, width: 10, height: 10 }] },
+                      { type: 'text', text: chongshaInfo, font: { size: 10, weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 2, minimumScaleFactor: 0.85 }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          
+          { type: 'spacer', length: 6 }, // 🔒 坚如磐石的固定间距
+          TopHairline(),
+          { type: 'spacer', length: 6 }, // 🔒 坚如磐石的固定间距
+
+          // === 第 3 行：节气与节假日区 (被牢牢踩在底部，极限压缩) ===
+          {
+            type: 'stack', direction: 'column', gap: 3, 
+            children: [
+              {
+                type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
+                children: [
+                  // 🌟 width: 14 容器，确保完美绝对左对齐
+                  { type: 'stack', width: 14, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:leaf.fill', color: C.ok, width: 10, height: 10 }] },
+                  { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: 10, weight: 'medium' }, textColor: C.dim, maxLines: 1, flex: 1 }
+                ]
+              },
+              {
+                type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
+                children: [
+                  // 🌟 width: 14 容器，确保完美绝对左对齐
+                  { type: 'stack', width: 14, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:paperplane.fill', color: C.warn, width: 10, height: 10 }] },
+                  { type: 'text', text: finalHolidayText, font: { size: 10, weight: 'medium' }, textColor: C.dim, maxLines: 1, flex: 1 }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  };
+}
