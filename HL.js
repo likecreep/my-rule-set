@@ -200,7 +200,7 @@ export default async function(ctx) {
       }
     }
     // 默认展示近 90 天最前 3 个即将到来的节假日/农历节日
-    if (upcomingHolidays.length >= 3) break; 
+    if (upcomingHolidays.length >= 5) break; 
   }
 
   let finalHolidayText = upcomingHolidays.join(" · ");
