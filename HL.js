@@ -27,9 +27,9 @@ export default async function(ctx) {
 
   // ── 3. 响应式尺寸引擎 ──
   const L = {
-    // 🌟 核心修复 2：采用 [上, 右, 下, 左] 分别控制，大幅削减底部冗余 padding
     pad:        isLarge ? [18, 22, 14, 22] : [14, 16, 8, 16],
-    mainGap:    isLarge ? 12 : 8,              
+    // 🌟 核心调整 1：主干间距极度压缩，原本中号是 8，现在砍到 3，释放出两根横线周围的大量空间
+    mainGap:    isLarge ? 8 : 3,              
     headFz:     isLarge ? 16 : 13,
     headIcz:    isLarge ? 18 : 14,
     astroFz:    isLarge ? 14 : 11,
@@ -38,7 +38,8 @@ export default async function(ctx) {
     dayFz:      isLarge ? 46 : 24,
     cnFz:       isLarge ? 13 : 10,
     lunarPad:   isLarge ? [10, 16] : [6, 10],
-    rightGap:   isLarge ? 6 : 4,
+    // 🌟 核心调整 2：微调右侧文本行距，使换行更紧凑
+    rightGap:   isLarge ? 6 : 3,
     gzFz:       isLarge ? 14 : 11,
     shichenFz:  isLarge ? 13 : 10,
     tagFz:      isLarge ? 11 : 9,
@@ -48,7 +49,6 @@ export default async function(ctx) {
     chongIcz:   isLarge ? 13 : 11,
     botFz:      isLarge ? 13 : 10,
     botIcz:     isLarge ? 14 : 11,
-    // 缩小底部行间隙
     botGap:     isLarge ? 6 : 2 
   };
 
@@ -232,10 +232,9 @@ export default async function(ctx) {
           
           // === 第 2 行：老黄历核心区 ===
           {
-            // 🌟 核心修复 1：移除 alignItems: 'center' 的硬性限制，让这排元素能够根据文本内容自然伸缩高度
-            type: 'stack', direction: 'row', gap: 12, flex: 1, 
+            type: 'stack', direction: 'row', gap: 12, flex: 1, alignItems: 'center', // 保持整体垂直居中，但通过内部释放高度
             children: [
-              // 左侧：巨幅日期 (将对齐转移到子组件内，防止被外层拉扯变形)
+              // 左侧：巨幅日期
               {
                 type: 'stack', direction: 'column', justifyContent: 'center',
                 children: [
@@ -254,7 +253,7 @@ export default async function(ctx) {
               },
               // 右侧：原生流式换行布局
               {
-                type: 'stack', direction: 'column', gap: L.rightGap, flex: 1, justifyContent: 'center',
+                type: 'stack', direction: 'column', gap: L.rightGap, flex: 1,
                 children: [
                   {
                     type: 'stack', direction: 'row', alignItems: 'center',
@@ -264,26 +263,26 @@ export default async function(ctx) {
                       { type: 'text', text: shichenStr, font: { size: L.shichenFz, weight: 'bold' }, textColor: C.dim }
                     ]
                   },
-                  // 🌟 明确施加 maxLines: 10，强势覆盖组件默认的单行截断策略
+                  // 🌟 核心调整 3：设置 maxLines: 0，这在绝大多数小组件底层（SwiftUI）中代表彻底解除行数限制！
                   {
                     type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
                       { type: 'stack', width: L.tagIcz, alignItems: 'center', backgroundColor: C.yiBg, borderRadius: 4, padding: [1, 0], children: [{ type: 'text', text: "宜", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.ok }] },
-                      { type: 'text', text: rawYi, font: { size: getDynFz(rawYi, L.txtFz), weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 10 } 
+                      { type: 'text', text: rawYi, font: { size: getDynFz(rawYi, L.txtFz), weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 0 } 
                     ]
                   },
                   {
                     type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
                       { type: 'stack', width: L.tagIcz, alignItems: 'center', backgroundColor: C.jiBg, borderRadius: 4, padding: [1, 0], children: [{ type: 'text', text: "忌", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.fail }] },
-                      { type: 'text', text: rawJi, font: { size: getDynFz(rawJi, L.txtFz), weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 10 }
+                      { type: 'text', text: rawJi, font: { size: getDynFz(rawJi, L.txtFz), weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 0 }
                     ]
                   },
                   {
                     type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
                       { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:flame.fill', color: C.fail, width: L.chongIcz, height: L.chongIcz }] },
-                      { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 10 }
+                      { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 0 }
                     ]
                   }
                 ]
