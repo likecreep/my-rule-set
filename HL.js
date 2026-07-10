@@ -1,6 +1,6 @@
 /**
  * 📅 日历 / 老黄历 (Tokyo Night 原生流式终极版)
- * 🎨 100% 官方 API 范式 / 拒绝弹簧干扰 / 绝对硬核等距 / 完美居中
+ * 🎨 彻底解除缩放限制 / 强制流式换行 / 内部绝对等距
  * ==========================================
  */
 export default async function(ctx) {
@@ -38,7 +38,7 @@ export default async function(ctx) {
     cnFz:       isLarge ? 14 : 11,
     lunarPad:   isLarge ? [10, 16, 10, 16] : [10, 14, 10, 14],
     
-    // 🌟 核心：右侧文字行距直接锁死，保证绝对等间距，不会被换行吃掉
+    // 固定的右侧文字行距，保证绝对等间距
     rightGap:   isLarge ? 6 : 6,    
     
     gzFz:       isLarge ? 14 : 12,
@@ -201,24 +201,22 @@ export default async function(ctx) {
     children: [ { type: 'spacer' } ]
   });
 
-  // 🌟 神奇组件：绝对居中标签盒
-  // 使用横向排列 + 左右 spacer 包夹文字。保证文字永远处于盒子正中心，完美对齐！
+  // 🌟 核心标签盒：保留绝对垂直居中技术，不被外部行高影响
   const TagBox = (text, color, bgColor) => ({
-    type: 'stack', direction: 'row', width: L.tagBoxW, backgroundColor: bgColor, borderRadius: 4, padding: [2, 0, 2, 0],
+    type: 'stack', direction: 'column', width: L.tagBoxW, backgroundColor: bgColor, borderRadius: 4, alignItems: 'center',
     children: [
-      { type: 'spacer' },
+      { type: 'spacer', length: 2 }, 
       { type: 'text', text: text, font: { size: L.tagFz, weight: 'heavy' }, textColor: color },
-      { type: 'spacer' }
+      { type: 'spacer', length: 2 }  
     ]
   });
 
-  // 🌟 神奇组件：绝对居中图标盒
   const IconBox = (icon, color) => ({
-    type: 'stack', direction: 'row', width: L.tagBoxW, padding: [2, 0, 2, 0],
+    type: 'stack', direction: 'column', width: L.tagBoxW, alignItems: 'center',
     children: [
-      { type: 'spacer' },
+      { type: 'spacer', length: 2 }, 
       { type: 'image', src: icon, color: color, width: L.chongIcz, height: L.chongIcz },
-      { type: 'spacer' }
+      { type: 'spacer', length: 2 }  
     ]
   });
 
@@ -248,65 +246,82 @@ export default async function(ctx) {
           
           // === 第 2 行：老黄历核心区 ===
           {
-            // 🌟 核心：外层设置 flex:1 占据剩余所有高度，并使用 alignItems: 'center'
-            // 这会让整个中间区域（无论左边还是右边）作为一个绝对的整体，死死地钉在上下两根横线的正中间！
-            type: 'stack', direction: 'row', gap: 12, flex: 1, alignItems: 'center', 
+            // 🚨 终极修正 1：改回 alignItems: 'start'，彻底解除对内部文字换行的高压封印！
+            type: 'stack', direction: 'row', gap: 12, flex: 1, alignItems: 'start', 
             children: [
-              // 左侧：巨幅日期
+              // 🌟 左侧：巨幅日期
               {
-                type: 'stack', direction: 'column', alignItems: 'center',
-                backgroundColor: C.lunarBg, borderRadius: 10, padding: L.lunarPad, 
+                type: 'stack', direction: 'column',
                 children: [
-                  { type: 'text', text: `周${WEEK}`, font: { size: L.weekFz, weight: 'bold' }, textColor: C.accent }, 
-                  { type: 'spacer', length: 2 },
-                  { type: 'text', text: `${D}`, font: { size: L.dayFz, weight: 'heavy' }, textColor: C.text }, 
-                  { type: 'spacer', length: 2 },
-                  { type: 'text', text: obj.cn, font: { size: L.cnFz, weight: 'bold' }, textColor: C.accent } 
+                  { type: 'spacer' }, // 顶部弹簧，保证对齐
+                  {
+                    type: 'stack', direction: 'column', alignItems: 'center',
+                    backgroundColor: C.lunarBg, borderRadius: 10, padding: L.lunarPad, 
+                    children: [
+                      { type: 'text', text: `周${WEEK}`, font: { size: L.weekFz, weight: 'bold' }, textColor: C.accent }, 
+                      { type: 'spacer', length: 2 },
+                      { type: 'text', text: `${D}`, font: { size: L.dayFz, weight: 'heavy' }, textColor: C.text }, 
+                      { type: 'spacer', length: 2 },
+                      { type: 'text', text: obj.cn, font: { size: L.cnFz, weight: 'bold' }, textColor: C.accent } 
+                    ]
+                  },
+                  { type: 'spacer' } // 底部弹簧，保证对齐
                 ]
               },
               
-              // 🌟 右侧：彻底清除内鬼弹簧（spacer）
+              // 🌟 右侧：纯正换行 + 绝对均分
               {
-                // 设置固定的 gap，让行与行之间的距离在物理上恒等！
-                type: 'stack', direction: 'column', gap: L.rightGap, flex: 1,
+                type: 'stack', direction: 'column', flex: 1,
                 children: [
-                  // 1. 干支时辰
+                  { type: 'spacer' }, // 👉 顶部大弹簧，将整块文字在右侧居中
+                  
                   {
-                    type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
+                    // 保持内部写死的固定 gap，保证各行之间的间距纹丝不动、绝对均匀
+                    type: 'stack', direction: 'column', gap: L.rightGap, 
                     children: [
-                      { type: 'text', text: `${ganzhiFull} · ${obj.term ? `今日${obj.term}` : `当前${currentTerm}`}`, font: { size: L.gzFz, weight: 'bold' }, textColor: C.accent, minScale: 0.8 },
-                      { type: 'spacer' },
-                      { type: 'text', text: shichenStr, font: { size: L.shichenFz, weight: 'bold' }, textColor: C.dim }
+                      // 1. 干支时辰
+                      {
+                        type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
+                        children: [
+                          { type: 'text', text: `${ganzhiFull} · ${obj.term ? `今日${obj.term}` : `当前${currentTerm}`}`, font: { size: L.gzFz, weight: 'bold' }, textColor: C.accent },
+                          { type: 'spacer' },
+                          { type: 'text', text: shichenStr, font: { size: L.shichenFz, weight: 'bold' }, textColor: C.dim }
+                        ]
+                      },
+                      
+                      // 2. 宜
+                      {
+                        type: 'stack', direction: 'row', alignItems: 'start', gap: 6,
+                        children: [
+                          TagBox("宜", C.ok, C.yiBg),
+                          // 🚨 终极修正 2：彻底删掉 minScale 属性，让文字无路可退，只能乖乖换行！
+                          { type: 'text', text: rawYi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.text, flex: 1 } 
+                        ]
+                      },
+                      
+                      // 3. 忌
+                      {
+                        type: 'stack', direction: 'row', alignItems: 'start', gap: 6,
+                        children: [
+                          TagBox("忌", C.fail, C.jiBg),
+                          // 彻底删掉 minScale
+                          { type: 'text', text: rawJi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.text, flex: 1 }
+                        ]
+                      },
+                      
+                      // 4. 冲煞运势
+                      {
+                        type: 'stack', direction: 'row', alignItems: 'start', gap: 6,
+                        children: [
+                          IconBox('sf-symbol:flame.fill', C.fail),
+                          // 彻底删掉 minScale
+                          { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.text, flex: 1 }
+                        ]
+                      }
                     ]
                   },
                   
-                  // 2. 宜
-                  {
-                    // 设置 alignItems: 'start'，确保多行文字时，标签能和第一行文字平齐
-                    type: 'stack', direction: 'row', alignItems: 'start', gap: 6,
-                    children: [
-                      TagBox("宜", C.ok, C.yiBg),
-                      { type: 'text', text: rawYi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.text, flex: 1, minScale: 0.6 } 
-                    ]
-                  },
-                  
-                  // 3. 忌
-                  {
-                    type: 'stack', direction: 'row', alignItems: 'start', gap: 6,
-                    children: [
-                      TagBox("忌", C.fail, C.jiBg),
-                      { type: 'text', text: rawJi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.text, flex: 1, minScale: 0.6 }
-                    ]
-                  },
-                  
-                  // 4. 冲煞运势
-                  {
-                    type: 'stack', direction: 'row', alignItems: 'start', gap: 6,
-                    children: [
-                      IconBox('sf-symbol:flame.fill', C.fail),
-                      { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.text, flex: 1, minScale: 0.6 }
-                    ]
-                  }
+                  { type: 'spacer' } // 👉 底部大弹簧，将整块文字在右侧居中
                 ]
               }
             ]
@@ -322,14 +337,14 @@ export default async function(ctx) {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
                   { type: 'stack', width: L.tagBoxW, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:leaf.fill', color: C.ok, width: L.botIcz, height: L.botIcz }] },
-                  { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.8 }
+                  { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1 }
                 ]
               },
               {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
                   { type: 'stack', width: L.tagBoxW, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:paperplane.fill', color: C.warn, width: L.botIcz, height: L.botIcz }] },
-                  { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.8 }
+                  { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1 }
                 ]
               }
             ]
