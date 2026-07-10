@@ -332,14 +332,14 @@ export default async function(ctx) {
               {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
-                  { type: 'stack', width: L.tagBoxW, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:leaf.fill', color: C.ok, width: L.botIcz, height: L.botIcz }] },
+                  { type: 'stack', width: L.tagBoxW, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:leaf.fill', color: C.termTxt, width: L.botIcz, height: L.botIcz }] },
                   { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.termTxt, flex: 1, minScale: 0.8 } // 👈 修改为节气色
                 ]
               },
               {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
-                  { type: 'stack', width: L.tagBoxW, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:paperplane.fill', color: C.warn, width: L.botIcz, height: L.botIcz }] },
+                  { type: 'stack', width: L.tagBoxW, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:paperplane.fill', color: C.holiTxt, width: L.botIcz, height: L.botIcz }] },
                   { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.holiTxt, flex: 1, minScale: 0.8 } // 👈 修改为假日色
                 ]
               }
