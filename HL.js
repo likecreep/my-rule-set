@@ -27,7 +27,7 @@ export default async function(ctx) {
 
   // ── 3. 极限空间响应式引擎 ──
   const L = {
-    pad:        isLarge ? [16, 20, 12, 20] : [10, 14, 8, 14],
+    pad:        isCompact ? [6, 8] : [8, 10],
     mainGap:    isLarge ? 6 : 2,    
     headFz:     isLarge ? 16 : 14,
     headIcz:    isLarge ? 18 : 14,
