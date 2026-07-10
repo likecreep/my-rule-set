@@ -232,7 +232,7 @@ export default async function(ctx) {
           
           // === 第 2 行：老黄历核心区 ===
           {
-            type: 'stack', direction: 'row', alignItems: 'center', gap: 12, 
+            type: 'stack', direction: 'row', alignItems: 'center', gap: 12, flex: 1, // 🌟 赋予中间区域 flex: 1 抢占剩余所有纵向空间
             children: [
               // 左侧：巨幅日期
               {
@@ -258,12 +258,12 @@ export default async function(ctx) {
                       { type: 'text', text: shichenStr, font: { size: L.shichenFz, weight: 'bold' }, textColor: C.dim }
                     ]
                   },
-                  // 🌟 宜：解除 minimumScaleFactor，允许最多换 5 行，字号动态计算！
+                  // 🌟 宜：解除任何 maxLines 限制，彻底拥抱流式排版！
                   {
                     type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
                       { type: 'stack', width: L.tagIcz, alignItems: 'center', backgroundColor: C.yiBg, borderRadius: 4, padding: [1, 0], children: [{ type: 'text', text: "宜", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.ok }] },
-                      { type: 'text', text: rawYi, font: { size: getDynFz(rawYi, L.txtFz), weight: 'medium' }, textColor: C.dim, maxLines: 5, flex: 1 } 
+                      { type: 'text', text: rawYi, font: { size: getDynFz(rawYi, L.txtFz), weight: 'medium' }, textColor: C.dim, flex: 1 } 
                     ]
                   },
                   // 🌟 忌：同上
@@ -271,7 +271,7 @@ export default async function(ctx) {
                     type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
                       { type: 'stack', width: L.tagIcz, alignItems: 'center', backgroundColor: C.jiBg, borderRadius: 4, padding: [1, 0], children: [{ type: 'text', text: "忌", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.fail }] },
-                      { type: 'text', text: rawJi, font: { size: getDynFz(rawJi, L.txtFz), weight: 'medium' }, textColor: C.dim, maxLines: 5, flex: 1 }
+                      { type: 'text', text: rawJi, font: { size: getDynFz(rawJi, L.txtFz), weight: 'medium' }, textColor: C.dim, flex: 1 }
                     ]
                   },
                   // 🌟 冲煞运势
@@ -279,7 +279,7 @@ export default async function(ctx) {
                     type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
                       { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:flame.fill', color: C.fail, width: L.chongIcz, height: L.chongIcz }] },
-                      { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 2 }
+                      { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.dim, flex: 1 }
                     ]
                   }
                 ]
@@ -287,8 +287,7 @@ export default async function(ctx) {
             ]
           },
           
-          // 海绵弹簧，吸收所有残余空白，强压底部
-          { type: 'spacer' }, 
+          // 移除捣乱的弹性 spacer，由上方的 flex: 1 接管空间
           Hairline(),
 
           // === 第 3 行：节气与节假日 ===
@@ -299,14 +298,14 @@ export default async function(ctx) {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
                   { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:leaf.fill', color: C.ok, width: L.botIcz, height: L.botIcz }] },
-                  { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, maxLines: 2, flex: 1 }
+                  { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1 }
                 ]
               },
               {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
                   { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:paperplane.fill', color: C.warn, width: L.botIcz, height: L.botIcz }] },
-                  { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, maxLines: 2, flex: 1 }
+                  { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1 }
                 ]
               }
             ]
