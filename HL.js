@@ -1,6 +1,6 @@
 /**
  * 📅 日历 / 老黄历 (Tokyo Night 原生流式终极版)
- * 🎨 彻底解除缩放限制 / 强制流式换行 / 内部绝对等距
+ * 🎨 强制多行指令 (maxLines:10) / 完美横线隔离 / 绝对等距
  * ==========================================
  */
 export default async function(ctx) {
@@ -28,30 +28,32 @@ export default async function(ctx) {
   // ── 3. 极简固定响应式引擎 ──
   const L = {
     pad:        isLarge ? [16, 20, 12, 20] : [14, 16, 12, 16],
-    mainGap:    isLarge ? 8 : 6,    
-    headFz:     isLarge ? 16 : 14,
-    headIcz:    isLarge ? 18 : 14,
-    astroFz:    isLarge ? 14 : 12,
-    astroIcz:   isLarge ? 14 : 12,
+    mainGap:    isLarge ? 8 : 4,    
+    headFz:     isLarge ? 15 : 13,
+    headIcz:    isLarge ? 16 : 14, // 🌟 缩小图标，防止越界
+    astroFz:    isLarge ? 13 : 11,
+    astroIcz:   isLarge ? 13 : 11,
     weekFz:     isLarge ? 14 : 11,
-    dayFz:      isLarge ? 48 : 32,  
-    cnFz:       isLarge ? 14 : 11,
+    dayFz:      isLarge ? 44 : 32,  
+    cnFz:       isLarge ? 13 : 11,
     lunarPad:   isLarge ? [10, 16, 10, 16] : [10, 14, 10, 14],
     
-    // 固定的右侧文字行距，保证绝对等间距
-    rightGap:   isLarge ? 6 : 6,    
+    // 行距依然死死锁住，保证换行后视觉仍然等距
+    rightGap:   isLarge ? 6 : 4,    
     
-    gzFz:       isLarge ? 14 : 12,
-    shichenFz:  isLarge ? 13 : 11,
+    gzFz:       isLarge ? 13 : 11,
+    shichenFz:  isLarge ? 12 : 10,
     
-    tagBoxW:    isLarge ? 24 : 22,  
-    tagFz:      isLarge ? 12 : 10,
-    chongIcz:   isLarge ? 14 : 12,
+    tagBoxW:    isLarge ? 22 : 18,  
+    tagFz:      isLarge ? 11 : 9,
+    chongIcz:   isLarge ? 13 : 11,
     
-    txtFz:      isLarge ? 15 : 12,
-    chongFz:    isLarge ? 13 : 11,
-    botFz:      isLarge ? 13 : 11,
-    botIcz:     isLarge ? 14 : 12,
+    // 🌟 将暴走的字号回调到正常大小
+    txtFz:      isLarge ? 13.5 : 11.5,
+    chongFz:    isLarge ? 12 : 10.5,
+    
+    botFz:      isLarge ? 12 : 10,
+    botIcz:     isLarge ? 13 : 11,
     botGap:     isLarge ? 6 : 4 
   };
 
@@ -201,7 +203,7 @@ export default async function(ctx) {
     children: [ { type: 'spacer' } ]
   });
 
-  // 🌟 核心标签盒：保留绝对垂直居中技术，不被外部行高影响
+  // 🌟 核心标签盒：保留绝对垂直居中
   const TagBox = (text, color, bgColor) => ({
     type: 'stack', direction: 'column', width: L.tagBoxW, backgroundColor: bgColor, borderRadius: 4, alignItems: 'center',
     children: [
@@ -232,7 +234,8 @@ export default async function(ctx) {
         children: [
           // === 第 1 行：公历与星座 ===
           { 
-            type: 'stack', direction: 'row', alignItems: 'center', gap: 4, 
+            // 🌟 终极隔离：底部增加 4px 的 padding 留白，让大号图标永远踩不到下面的横线！
+            type: 'stack', direction: 'row', alignItems: 'center', gap: 4, padding: [0, 0, 4, 0],
             children: [
               { type: 'image', src: 'sf-symbol:calendar.circle.fill', color: C.accent, width: L.headIcz, height: L.headIcz }, 
               { type: 'text', text: `${Y}年${M}月${D}日`, font: { size: L.headFz, weight: 'heavy' }, textColor: C.text },
@@ -246,14 +249,13 @@ export default async function(ctx) {
           
           // === 第 2 行：老黄历核心区 ===
           {
-            // 🚨 终极修正 1：改回 alignItems: 'start'，彻底解除对内部文字换行的高压封印！
             type: 'stack', direction: 'row', gap: 12, flex: 1, alignItems: 'start', 
             children: [
-              // 🌟 左侧：巨幅日期
+              // 左侧：巨幅日期
               {
                 type: 'stack', direction: 'column',
                 children: [
-                  { type: 'spacer' }, // 顶部弹簧，保证对齐
+                  { type: 'spacer' }, 
                   {
                     type: 'stack', direction: 'column', alignItems: 'center',
                     backgroundColor: C.lunarBg, borderRadius: 10, padding: L.lunarPad, 
@@ -265,18 +267,17 @@ export default async function(ctx) {
                       { type: 'text', text: obj.cn, font: { size: L.cnFz, weight: 'bold' }, textColor: C.accent } 
                     ]
                   },
-                  { type: 'spacer' } // 底部弹簧，保证对齐
+                  { type: 'spacer' } 
                 ]
               },
               
-              // 🌟 右侧：纯正换行 + 绝对均分
+              // 右侧：纯正换行 + 绝对均分
               {
                 type: 'stack', direction: 'column', flex: 1,
                 children: [
-                  { type: 'spacer' }, // 👉 顶部大弹簧，将整块文字在右侧居中
+                  { type: 'spacer' }, // 顶部大弹簧，将整块文字居中
                   
                   {
-                    // 保持内部写死的固定 gap，保证各行之间的间距纹丝不动、绝对均匀
                     type: 'stack', direction: 'column', gap: L.rightGap, 
                     children: [
                       // 1. 干支时辰
@@ -294,8 +295,8 @@ export default async function(ctx) {
                         type: 'stack', direction: 'row', alignItems: 'start', gap: 6,
                         children: [
                           TagBox("宜", C.ok, C.yiBg),
-                          // 🚨 终极修正 2：彻底删掉 minScale 属性，让文字无路可退，只能乖乖换行！
-                          { type: 'text', text: rawYi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.text, flex: 1 } 
+                          // 🚨 终极绝杀：强行指定 maxLines: 10。系统只要看到这个，即使被挤死也会优先换行！
+                          { type: 'text', text: rawYi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.text, flex: 1, maxLines: 10 } 
                         ]
                       },
                       
@@ -304,8 +305,7 @@ export default async function(ctx) {
                         type: 'stack', direction: 'row', alignItems: 'start', gap: 6,
                         children: [
                           TagBox("忌", C.fail, C.jiBg),
-                          // 彻底删掉 minScale
-                          { type: 'text', text: rawJi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.text, flex: 1 }
+                          { type: 'text', text: rawJi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.text, flex: 1, maxLines: 10 }
                         ]
                       },
                       
@@ -314,14 +314,13 @@ export default async function(ctx) {
                         type: 'stack', direction: 'row', alignItems: 'start', gap: 6,
                         children: [
                           IconBox('sf-symbol:flame.fill', C.fail),
-                          // 彻底删掉 minScale
-                          { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.text, flex: 1 }
+                          { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.text, flex: 1, maxLines: 10 }
                         ]
                       }
                     ]
                   },
                   
-                  { type: 'spacer' } // 👉 底部大弹簧，将整块文字在右侧居中
+                  { type: 'spacer' } // 底部大弹簧，将整块文字居中
                 ]
               }
             ]
@@ -337,14 +336,15 @@ export default async function(ctx) {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
                   { type: 'stack', width: L.tagBoxW, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:leaf.fill', color: C.ok, width: L.botIcz, height: L.botIcz }] },
-                  { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1 }
+                  // 🚨 压缩底部指令：强制单行（maxLines: 1），把宝贵的垂直空间省下来全部给上面的中间区域
+                  { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 1 }
                 ]
               },
               {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
                   { type: 'stack', width: L.tagBoxW, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:paperplane.fill', color: C.warn, width: L.botIcz, height: L.botIcz }] },
-                  { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1 }
+                  { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 1 }
                 ]
               }
             ]
