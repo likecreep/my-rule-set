@@ -1,6 +1,6 @@
 /**
  * 📅 日历 / 老黄历 (Tokyo Night 原生流式终极版)
- * 🎨 强制多行指令 (maxLines:10) / 完美横线隔离 / 绝对等距
+ * 🎨 100% 官方 API 合规 / 绝对等高切片 / 无限换行
  * ==========================================
  */
 export default async function(ctx) {
@@ -25,36 +25,28 @@ export default async function(ctx) {
     jiBg:     { light: '#FF47571A', dark: '#FF2A6D1A' }
   };
 
-  // ── 3. 极简固定响应式引擎 ──
+  // ── 3. 极限空间响应式引擎 ──
   const L = {
-    pad:        isLarge ? [16, 20, 12, 20] : [14, 16, 12, 16],
-    mainGap:    isLarge ? 8 : 4,    
-    headFz:     isLarge ? 15 : 13,
-    headIcz:    isLarge ? 16 : 14, // 🌟 缩小图标，防止越界
-    astroFz:    isLarge ? 13 : 11,
-    astroIcz:   isLarge ? 13 : 11,
+    pad:        isLarge ? [16, 20, 12, 20] : [10, 14, 8, 14],
+    mainGap:    isLarge ? 6 : 2,    
+    headFz:     isLarge ? 16 : 14,
+    headIcz:    isLarge ? 18 : 14,
+    astroFz:    isLarge ? 14 : 12,
+    astroIcz:   isLarge ? 14 : 12,
     weekFz:     isLarge ? 14 : 11,
-    dayFz:      isLarge ? 44 : 32,  
-    cnFz:       isLarge ? 13 : 11,
-    lunarPad:   isLarge ? [10, 16, 10, 16] : [10, 14, 10, 14],
-    
-    // 行距依然死死锁住，保证换行后视觉仍然等距
-    rightGap:   isLarge ? 6 : 4,    
-    
-    gzFz:       isLarge ? 13 : 11,
-    shichenFz:  isLarge ? 12 : 10,
-    
+    dayFz:      isLarge ? 48 : 28,  
+    cnFz:       isLarge ? 14 : 11,
+    lunarPad:   isLarge ? [10, 16, 10, 16] : [6, 10, 6, 10],
+    gzFz:       isLarge ? 14 : 12,
+    shichenFz:  isLarge ? 13 : 11,
     tagBoxW:    isLarge ? 22 : 18,  
-    tagFz:      isLarge ? 11 : 9,
-    chongIcz:   isLarge ? 13 : 11,
-    
-    // 🌟 将暴走的字号回调到正常大小
-    txtFz:      isLarge ? 13.5 : 11.5,
-    chongFz:    isLarge ? 12 : 10.5,
-    
-    botFz:      isLarge ? 12 : 10,
-    botIcz:     isLarge ? 13 : 11,
-    botGap:     isLarge ? 6 : 4 
+    tagFz:      isLarge ? 12 : 10,
+    chongIcz:   isLarge ? 14 : 12,
+    txtFz:      isLarge ? 15 : 13.5,
+    chongFz:    isLarge ? 13 : 12,
+    botFz:      isLarge ? 13 : 11,
+    botIcz:     isLarge ? 14 : 12,
+    botGap:     isLarge ? 4 : 2 
   };
 
   const now = new Date(Date.now() + (new Date().getTimezoneOffset() + 480) * 60000);
@@ -203,25 +195,6 @@ export default async function(ctx) {
     children: [ { type: 'spacer' } ]
   });
 
-  // 🌟 核心标签盒：保留绝对垂直居中
-  const TagBox = (text, color, bgColor) => ({
-    type: 'stack', direction: 'column', width: L.tagBoxW, backgroundColor: bgColor, borderRadius: 4, alignItems: 'center',
-    children: [
-      { type: 'spacer', length: 2 }, 
-      { type: 'text', text: text, font: { size: L.tagFz, weight: 'heavy' }, textColor: color },
-      { type: 'spacer', length: 2 }  
-    ]
-  });
-
-  const IconBox = (icon, color) => ({
-    type: 'stack', direction: 'column', width: L.tagBoxW, alignItems: 'center',
-    children: [
-      { type: 'spacer', length: 2 }, 
-      { type: 'image', src: icon, color: color, width: L.chongIcz, height: L.chongIcz },
-      { type: 'spacer', length: 2 }  
-    ]
-  });
-
   return {
     type: 'widget', 
     url: 'calshow://', 
@@ -234,8 +207,7 @@ export default async function(ctx) {
         children: [
           // === 第 1 行：公历与星座 ===
           { 
-            // 🌟 终极隔离：底部增加 4px 的 padding 留白，让大号图标永远踩不到下面的横线！
-            type: 'stack', direction: 'row', alignItems: 'center', gap: 4, padding: [0, 0, 4, 0],
+            type: 'stack', direction: 'row', alignItems: 'center', gap: 4, 
             children: [
               { type: 'image', src: 'sf-symbol:calendar.circle.fill', color: C.accent, width: L.headIcz, height: L.headIcz }, 
               { type: 'text', text: `${Y}年${M}月${D}日`, font: { size: L.headFz, weight: 'heavy' }, textColor: C.text },
@@ -249,9 +221,9 @@ export default async function(ctx) {
           
           // === 第 2 行：老黄历核心区 ===
           {
-            type: 'stack', direction: 'row', gap: 12, flex: 1, alignItems: 'start', 
+            type: 'stack', direction: 'row', gap: 12, flex: 1, 
             children: [
-              // 左侧：巨幅日期
+              // 🌟 左侧：巨幅日期 (不加 flex: 1，靠上下 spacer 纯自然垂直居中)
               {
                 type: 'stack', direction: 'column',
                 children: [
@@ -271,56 +243,62 @@ export default async function(ctx) {
                 ]
               },
               
-              // 右侧：纯正换行 + 绝对均分
+              // 🌟 右侧：绝对三等分切片布局
               {
                 type: 'stack', direction: 'column', flex: 1,
                 children: [
-                  { type: 'spacer' }, // 顶部大弹簧，将整块文字居中
-                  
+                  // 1. 干支时辰 (给下方留出 2px 极小缝隙)
                   {
-                    type: 'stack', direction: 'column', gap: L.rightGap, 
+                    type: 'stack', direction: 'row', alignItems: 'center',
+                    padding: [0, 0, 2, 0], 
                     children: [
-                      // 1. 干支时辰
+                      { type: 'text', text: `${ganzhiFull} · ${obj.term ? `今日${obj.term}` : `当前${currentTerm}`}`, font: { size: L.gzFz, weight: 'bold' }, textColor: C.accent, minScale: 0.8 },
+                      { type: 'spacer' },
+                      { type: 'text', text: shichenStr, font: { size: L.shichenFz, weight: 'bold' }, textColor: C.dim }
+                    ]
+                  },
+                  // 2. 宜、忌、运势 三兄弟
+                  // 注意这里彻底删除了游离的 spacer，由子元素的 flex: 1 强行平分剩余全部空间！
+                  {
+                    type: 'stack', direction: 'column', flex: 1, gap: 2, // 仅保留 2px 安全间距防粘连
+                    children: [
+                      // 🌟 宜：切片 1 (强制 flex: 1)
                       {
-                        type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
+                        // 加上 alignItems: 'center'，让 Tag 始终浮在整个切片的垂直正中间，无论文字是 1 行还是 2 行都会极度平稳
+                        type: 'stack', direction: 'row', alignItems: 'center', flex: 1, gap: 4,
                         children: [
-                          { type: 'text', text: `${ganzhiFull} · ${obj.term ? `今日${obj.term}` : `当前${currentTerm}`}`, font: { size: L.gzFz, weight: 'bold' }, textColor: C.accent },
-                          { type: 'spacer' },
-                          { type: 'text', text: shichenStr, font: { size: L.shichenFz, weight: 'bold' }, textColor: C.dim }
+                          { 
+                            type: 'stack', direction: 'column', width: L.tagBoxW, backgroundColor: C.yiBg, borderRadius: 4, padding: [2, 0, 2, 0], alignItems: 'center',
+                            children: [{ type: 'text', text: "宜", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.ok }] 
+                          },
+                          { type: 'text', text: rawYi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.6 } 
                         ]
                       },
-                      
-                      // 2. 宜
+                      // 🌟 忌：切片 2 (强制 flex: 1)
                       {
-                        type: 'stack', direction: 'row', alignItems: 'start', gap: 6,
+                        type: 'stack', direction: 'row', alignItems: 'center', flex: 1, gap: 4,
                         children: [
-                          TagBox("宜", C.ok, C.yiBg),
-                          // 🚨 终极绝杀：强行指定 maxLines: 10。系统只要看到这个，即使被挤死也会优先换行！
-                          { type: 'text', text: rawYi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.text, flex: 1, maxLines: 10 } 
+                          { 
+                            type: 'stack', direction: 'column', width: L.tagBoxW, backgroundColor: C.jiBg, borderRadius: 4, padding: [2, 0, 2, 0], alignItems: 'center',
+                            children: [{ type: 'text', text: "忌", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.fail }] 
+                          },
+                          { type: 'text', text: rawJi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.6 }
                         ]
                       },
-                      
-                      // 3. 忌
+                      // 🌟 冲煞运势：切片 3 (强制 flex: 1)
                       {
-                        type: 'stack', direction: 'row', alignItems: 'start', gap: 6,
+                        type: 'stack', direction: 'row', alignItems: 'center', flex: 1, gap: 4,
                         children: [
-                          TagBox("忌", C.fail, C.jiBg),
-                          { type: 'text', text: rawJi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.text, flex: 1, maxLines: 10 }
-                        ]
-                      },
-                      
-                      // 4. 冲煞运势
-                      {
-                        type: 'stack', direction: 'row', alignItems: 'start', gap: 6,
-                        children: [
-                          IconBox('sf-symbol:flame.fill', C.fail),
-                          { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.text, flex: 1, maxLines: 10 }
+                          { 
+                            type: 'stack', direction: 'column', width: L.tagBoxW, padding: [2, 0, 2, 0], alignItems: 'center', 
+                            children: [{ type: 'image', src: 'sf-symbol:flame.fill', color: C.fail, width: L.chongIcz, height: L.chongIcz }] 
+                          },
+                          { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.6 }
                         ]
                       }
                     ]
-                  },
-                  
-                  { type: 'spacer' } // 底部大弹簧，将整块文字居中
+                  }
+                  // 🚨 彻底删除了运势底部的 spacer！区域会直接贴紧下方的横线。
                 ]
               }
             ]
@@ -336,15 +314,14 @@ export default async function(ctx) {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
                   { type: 'stack', width: L.tagBoxW, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:leaf.fill', color: C.ok, width: L.botIcz, height: L.botIcz }] },
-                  // 🚨 压缩底部指令：强制单行（maxLines: 1），把宝贵的垂直空间省下来全部给上面的中间区域
-                  { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 1 }
+                  { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.8 }
                 ]
               },
               {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
                   { type: 'stack', width: L.tagBoxW, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:paperplane.fill', color: C.warn, width: L.botIcz, height: L.botIcz }] },
-                  { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 1 }
+                  { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.8 }
                 ]
               }
             ]
