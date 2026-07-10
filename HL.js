@@ -27,7 +27,8 @@ export default async function(ctx) {
 
   // ── 3. 响应式尺寸引擎 ──
   const L = {
-    pad:        isLarge ? [18, 22] : [14, 16],
+    // 🌟 核心修复 2：采用 [上, 右, 下, 左] 分别控制，大幅削减底部冗余 padding
+    pad:        isLarge ? [18, 22, 14, 22] : [14, 16, 8, 16],
     mainGap:    isLarge ? 12 : 8,              
     headFz:     isLarge ? 16 : 13,
     headIcz:    isLarge ? 18 : 14,
@@ -41,16 +42,16 @@ export default async function(ctx) {
     gzFz:       isLarge ? 14 : 11,
     shichenFz:  isLarge ? 13 : 10,
     tagFz:      isLarge ? 11 : 9,
-    tagIcz:     isLarge ? 16 : 14, // 绝对左对齐基准锚点
+    tagIcz:     isLarge ? 16 : 14, 
     txtFz:      isLarge ? 14 : 11,
     chongFz:    isLarge ? 13 : 10,
     chongIcz:   isLarge ? 13 : 11,
     botFz:      isLarge ? 13 : 10,
     botIcz:     isLarge ? 14 : 11,
-    botGap:     isLarge ? 6 : 3
+    // 缩小底部行间隙
+    botGap:     isLarge ? 6 : 2 
   };
 
-  // 🌟 核心技巧：动态字号引擎 (解决极端超长文本)
   function getDynFz(text, defaultSize) {
     if (!text) return defaultSize;
     const len = text.length;
@@ -200,7 +201,6 @@ export default async function(ctx) {
   if (!finalHolidayText) finalHolidayText = "近 90 天无法定长假";
   if (todayHoliday) finalHolidayText = `今日${todayHoliday} | 距 ${finalHolidayText}`;
 
-  // 绝对水平物理分割线
   const Hairline = () => ({
     type: 'stack', direction: 'row', height: 0.5, backgroundColor: C.hairline,
     children: [ { type: 'spacer' } ]
@@ -232,23 +232,29 @@ export default async function(ctx) {
           
           // === 第 2 行：老黄历核心区 ===
           {
-            type: 'stack', direction: 'row', alignItems: 'center', gap: 12, flex: 1, // 🌟 赋予中间区域 flex: 1 抢占剩余所有纵向空间
+            // 🌟 核心修复 1：移除 alignItems: 'center' 的硬性限制，让这排元素能够根据文本内容自然伸缩高度
+            type: 'stack', direction: 'row', gap: 12, flex: 1, 
             children: [
-              // 左侧：巨幅日期
+              // 左侧：巨幅日期 (将对齐转移到子组件内，防止被外层拉扯变形)
               {
-                type: 'stack', direction: 'column', alignItems: 'center', justifyContent: 'center',
-                backgroundColor: C.lunarBg, borderRadius: 10, padding: L.lunarPad, 
+                type: 'stack', direction: 'column', justifyContent: 'center',
                 children: [
-                  { type: 'text', text: `周${WEEK}`, font: { size: L.weekFz, weight: 'bold' }, textColor: C.accent, maxLines: 1 }, 
-                  { type: 'spacer', length: 2 },
-                  { type: 'text', text: `${D}`, font: { size: L.dayFz, weight: 'heavy', family: 'rounded' }, textColor: C.text, maxLines: 1 }, 
-                  { type: 'spacer', length: 2 },
-                  { type: 'text', text: obj.cn, font: { size: L.cnFz, weight: 'bold' }, textColor: C.accent, maxLines: 1 } 
+                  {
+                    type: 'stack', direction: 'column', alignItems: 'center', justifyContent: 'center',
+                    backgroundColor: C.lunarBg, borderRadius: 10, padding: L.lunarPad, 
+                    children: [
+                      { type: 'text', text: `周${WEEK}`, font: { size: L.weekFz, weight: 'bold' }, textColor: C.accent, maxLines: 1 }, 
+                      { type: 'spacer', length: 2 },
+                      { type: 'text', text: `${D}`, font: { size: L.dayFz, weight: 'heavy', family: 'rounded' }, textColor: C.text, maxLines: 1 }, 
+                      { type: 'spacer', length: 2 },
+                      { type: 'text', text: obj.cn, font: { size: L.cnFz, weight: 'bold' }, textColor: C.accent, maxLines: 1 } 
+                    ]
+                  }
                 ]
               },
               // 右侧：原生流式换行布局
               {
-                type: 'stack', direction: 'column', gap: L.rightGap, flex: 1, 
+                type: 'stack', direction: 'column', gap: L.rightGap, flex: 1, justifyContent: 'center',
                 children: [
                   {
                     type: 'stack', direction: 'row', alignItems: 'center',
@@ -258,28 +264,26 @@ export default async function(ctx) {
                       { type: 'text', text: shichenStr, font: { size: L.shichenFz, weight: 'bold' }, textColor: C.dim }
                     ]
                   },
-                  // 🌟 宜：解除任何 maxLines 限制，彻底拥抱流式排版！
+                  // 🌟 明确施加 maxLines: 10，强势覆盖组件默认的单行截断策略
                   {
                     type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
                       { type: 'stack', width: L.tagIcz, alignItems: 'center', backgroundColor: C.yiBg, borderRadius: 4, padding: [1, 0], children: [{ type: 'text', text: "宜", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.ok }] },
-                      { type: 'text', text: rawYi, font: { size: getDynFz(rawYi, L.txtFz), weight: 'medium' }, textColor: C.dim, flex: 1 } 
+                      { type: 'text', text: rawYi, font: { size: getDynFz(rawYi, L.txtFz), weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 10 } 
                     ]
                   },
-                  // 🌟 忌：同上
                   {
                     type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
                       { type: 'stack', width: L.tagIcz, alignItems: 'center', backgroundColor: C.jiBg, borderRadius: 4, padding: [1, 0], children: [{ type: 'text', text: "忌", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.fail }] },
-                      { type: 'text', text: rawJi, font: { size: getDynFz(rawJi, L.txtFz), weight: 'medium' }, textColor: C.dim, flex: 1 }
+                      { type: 'text', text: rawJi, font: { size: getDynFz(rawJi, L.txtFz), weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 10 }
                     ]
                   },
-                  // 🌟 冲煞运势
                   {
                     type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
                       { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:flame.fill', color: C.fail, width: L.chongIcz, height: L.chongIcz }] },
-                      { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.dim, flex: 1 }
+                      { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 10 }
                     ]
                   }
                 ]
@@ -287,7 +291,6 @@ export default async function(ctx) {
             ]
           },
           
-          // 移除捣乱的弹性 spacer，由上方的 flex: 1 接管空间
           Hairline(),
 
           // === 第 3 行：节气与节假日 ===
@@ -298,14 +301,14 @@ export default async function(ctx) {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
                   { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:leaf.fill', color: C.ok, width: L.botIcz, height: L.botIcz }] },
-                  { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1 }
+                  { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 2 }
                 ]
               },
               {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
                   { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:paperplane.fill', color: C.warn, width: L.botIcz, height: L.botIcz }] },
-                  { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1 }
+                  { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 2 }
                 ]
               }
             ]
