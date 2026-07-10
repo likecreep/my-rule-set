@@ -40,7 +40,7 @@ export default async function(ctx) {
 
   // ── 2. 统一尺寸体系 ──
   const layout = {
-    padding:  isCompact ? [12, 12, 12, 12] : [10, 12, 10, 12],
+    padding:  isCompact ? [12, 0, 12, 0] : [10, 0, 10, 0],
     groupPad: isCompact ? [6, 8] : [8, 10],
     headerFz: isCompact ? 11 : 13,
     headerIcz:isCompact ? 15 : 17,
