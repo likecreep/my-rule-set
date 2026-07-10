@@ -228,7 +228,7 @@ export default async function(ctx) {
             children: [
               // 🌟 左侧：巨幅日期 (使用 flex: 1 和上下 spacer 实现纯正的 Flex 垂直居中)
               {
-                type: 'stack', direction: 'column', flex: 1,
+                type: 'stack', direction: 'column',
                 children: [
                   { type: 'spacer' }, // 顶部弹性垫片
                   {
