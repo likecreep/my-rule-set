@@ -1,6 +1,6 @@
 /**
  * 📅 日历 / 老黄历 (Tokyo Night 原生流式终极版)
- * 🎨 100% 官方 API 合规 / 绝对等高切片 / 无限换行
+ * 🎨 100% 官方 API 合规 / 绝对等高切片 / 无限换行 / 包含详尽农历节日
  * ==========================================
  */
 export default async function(ctx) {
@@ -160,14 +160,29 @@ export default async function(ctx) {
       if (tName !== "工作日" && tName !== "周末" && tName !== "休息日") todayHoliday = tName;
   }
 
+  // 🚨 更新了这里：加入所有核心农历节日，并精准判定除夕
   const targetHolidays = [
-    { name: "元旦", match: (m, d, l) => m === 1 && d === 1 },
-    { name: "春节", match: (m, d, l) => l.cn === "正月初一" },
-    { name: "清明", match: (m, d, l) => l.term === "清明" },
-    { name: "劳动", match: (m, d, l) => m === 5 && d === 1 },
-    { name: "端午", match: (m, d, l) => l.cn === "五月初五" },
-    { name: "中秋", match: (m, d, l) => l.cn === "八月十五" },
-    { name: "国庆", match: (m, d, l) => m === 10 && d === 1 }
+    { name: "元旦", match: (m, d, l, dt) => m === 1 && d === 1 },
+    { name: "春节", match: (m, d, l, dt) => l.cn === "正月初一" },
+    { name: "元宵", match: (m, d, l, dt) => l.cn === "正月十五" },
+    { name: "龙抬头", match: (m, d, l, dt) => l.cn === "二月初二" },
+    { name: "清明", match: (m, d, l, dt) => l.term === "清明" },
+    { name: "劳动", match: (m, d, l, dt) => m === 5 && d === 1 },
+    { name: "端午", match: (m, d, l, dt) => l.cn === "五月初五" },
+    { name: "七夕", match: (m, d, l, dt) => l.cn === "七月初七" },
+    { name: "中元", match: (m, d, l, dt) => l.cn === "七月十五" },
+    { name: "中秋", match: (m, d, l, dt) => l.cn === "八月十五" },
+    { name: "重阳", match: (m, d, l, dt) => l.cn === "九月初九" },
+    { name: "国庆", match: (m, d, l, dt) => m === 10 && d === 1 },
+    { name: "寒衣", match: (m, d, l, dt) => l.cn === "十月初一" },
+    { name: "下元", match: (m, d, l, dt) => l.cn === "十月十五" },
+    { name: "腊八", match: (m, d, l, dt) => l.cn === "腊月初八" },
+    { name: "小年", match: (m, d, l, dt) => l.cn === "腊月廿三" },
+    { name: "除夕", match: (m, d, l, dt) => {
+        // 判断明天是否为大年初一来确认今天是否为除夕，无论腊月是29天还是30天均兼容
+        let nextD = new Date(dt.getTime() + 86400000);
+        return Lunar.parse(nextD.getFullYear(), nextD.getMonth() + 1, nextD.getDate()).cn === "正月初一";
+    }}
   ];
 
   let upcomingHolidays = [];
@@ -178,16 +193,18 @@ export default async function(ctx) {
     let ty = tempDate.getFullYear(), tm = tempDate.getMonth() + 1, td = tempDate.getDate();
     let tl = Lunar.parse(ty, tm, td);
     for (let h of targetHolidays) {
-      if (!foundHolidays.has(h.name) && h.match(tm, td, tl)) {
+      // 修改了这里：将当前的 Date 实例 tempDate 传进去，以便用来计算明天
+      if (!foundHolidays.has(h.name) && h.match(tm, td, tl, tempDate)) {
         upcomingHolidays.push(`${h.name} ${i}天`);
         foundHolidays.add(h.name);
       }
     }
+    // 默认展示近 90 天最前 3 个即将到来的节假日/农历节日
     if (upcomingHolidays.length >= 3) break; 
   }
 
   let finalHolidayText = upcomingHolidays.join(" · ");
-  if (!finalHolidayText) finalHolidayText = "近 90 天无法定长假";
+  if (!finalHolidayText) finalHolidayText = "近 90 天无法定或传统长假";
   if (todayHoliday) finalHolidayText = `今日${todayHoliday} | 距 ${finalHolidayText}`;
 
   const Hairline = () => ({
@@ -223,7 +240,7 @@ export default async function(ctx) {
           {
             type: 'stack', direction: 'row', gap: 12, flex: 1, 
             children: [
-              // 🌟 左侧：巨幅日期 (不加 flex: 1，靠上下 spacer 纯自然垂直居中)
+              // 🌟 左侧：巨幅日期
               {
                 type: 'stack', direction: 'column',
                 children: [
@@ -247,7 +264,6 @@ export default async function(ctx) {
               {
                 type: 'stack', direction: 'column', flex: 1,
                 children: [
-                  // 1. 干支时辰 (给下方留出 2px 极小缝隙)
                   {
                     type: 'stack', direction: 'row', alignItems: 'center',
                     padding: [0, 0, 2, 0], 
@@ -257,14 +273,10 @@ export default async function(ctx) {
                       { type: 'text', text: shichenStr, font: { size: L.shichenFz, weight: 'bold' }, textColor: C.dim }
                     ]
                   },
-                  // 2. 宜、忌、运势 三兄弟
-                  // 注意这里彻底删除了游离的 spacer，由子元素的 flex: 1 强行平分剩余全部空间！
                   {
-                    type: 'stack', direction: 'column', flex: 1, gap: 2, // 仅保留 2px 安全间距防粘连
+                    type: 'stack', direction: 'column', flex: 1, gap: 2,
                     children: [
-                      // 🌟 宜：切片 1 (强制 flex: 1)
                       {
-                        // 加上 alignItems: 'center'，让 Tag 始终浮在整个切片的垂直正中间，无论文字是 1 行还是 2 行都会极度平稳
                         type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
                         children: [
                           { 
@@ -275,7 +287,6 @@ export default async function(ctx) {
                         ]
                       },
                       { type: 'spacer' },
-                      // 🌟 忌：切片 2 (强制 flex: 1)
                       {
                         type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
                         children: [
@@ -287,7 +298,6 @@ export default async function(ctx) {
                         ]
                       },
                       { type: 'spacer' },
-                      // 🌟 冲煞运势：切片 3 (强制 flex: 1)
                       {
                         type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
                         children: [
@@ -300,7 +310,6 @@ export default async function(ctx) {
                       }
                     ]
                   }
-                  // 🚨 彻底删除了运势底部的 spacer！区域会直接贴紧下方的横线。
                 ]
               }
             ]
