@@ -25,10 +25,11 @@ export default async function(ctx) {
     jiBg:     { light: '#FF47571A', dark: '#FF2A6D1A' }
   };
 
-  // ── 3. 响应式尺寸引擎 ──
+  // ── 3. 响应式尺寸引擎 (极限压榨中号纵向空间) ──
   const L = {
-    pad:        isLarge ? [18, 22, 14, 22] : [14, 16, 8, 16],
-    mainGap:    isLarge ? 8 : 4,              
+    // 🌟 核心调整 1：大幅缩减中号的上下留白，给中间换行让出物理空间
+    pad:        isLarge ? [18, 22, 14, 22] : [10, 16, 6, 16],
+    mainGap:    isLarge ? 8 : 2, // 分割线前后的间距压到极小             
     headFz:     isLarge ? 16 : 13,
     headIcz:    isLarge ? 18 : 14,
     astroFz:    isLarge ? 14 : 11,
@@ -37,12 +38,12 @@ export default async function(ctx) {
     dayFz:      isLarge ? 46 : 24,
     cnFz:       isLarge ? 13 : 10,
     lunarPad:   isLarge ? [10, 16] : [6, 10],
-    rightGap:   isLarge ? 6 : 4,
+    rightGap:   isLarge ? 6 : 2, // 宜忌行距压缩
     gzFz:       isLarge ? 14 : 11,
     shichenFz:  isLarge ? 13 : 10,
     tagFz:      isLarge ? 11 : 9,
     tagIcz:     isLarge ? 16 : 14, 
-    txtFz:      isLarge ? 14 : 11,
+    txtFz:      isLarge ? 14 : 10.5, // 中号字号微调，确保两行能轻松塞下
     chongFz:    isLarge ? 13 : 10,
     chongIcz:   isLarge ? 13 : 11,
     botFz:      isLarge ? 13 : 10,
@@ -230,8 +231,7 @@ export default async function(ctx) {
           
           // === 第 2 行：老黄历核心区 ===
           {
-            // 🌟 完全移除外层横向布局的 alignItems，彻底释放高度
-            type: 'stack', direction: 'row', gap: 12, flex: 1,
+            type: 'stack', direction: 'row', gap: 12, flex: 1, 
             children: [
               // 左侧：巨幅日期
               {
@@ -252,8 +252,7 @@ export default async function(ctx) {
               },
               // 右侧：无限制流式换行布局
               {
-                // 🌟 移除 justifyContent，允许内容自然排版
-                type: 'stack', direction: 'column', gap: L.rightGap, flex: 1,
+                type: 'stack', direction: 'column', gap: L.rightGap, flex: 1, justifyContent: 'center',
                 children: [
                   {
                     type: 'stack', direction: 'row', alignItems: 'center',
@@ -263,9 +262,9 @@ export default async function(ctx) {
                       { type: 'text', text: shichenStr, font: { size: L.shichenFz, weight: 'bold' }, textColor: C.dim }
                     ]
                   },
-                  // 🌟 宜：完全移除 maxLines，移除容器的 alignItems 束缚，实现真正流式换行
+                  // 🌟 核心调整 2：加入 alignItems: 'start' 保证 Tag 始终在首行对齐，彻底删除 maxLines
                   {
-                    type: 'stack', direction: 'row', gap: 4,
+                    type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
                       { 
                         type: 'stack', width: L.tagIcz, backgroundColor: C.yiBg, borderRadius: 4, padding: [1, 0], alignItems: 'center',
@@ -274,9 +273,8 @@ export default async function(ctx) {
                       { type: 'text', text: rawYi, font: { size: getDynFz(rawYi, L.txtFz), weight: 'medium' }, textColor: C.dim, flex: 1 } 
                     ]
                   },
-                  // 🌟 忌：同上
                   {
-                    type: 'stack', direction: 'row', gap: 4,
+                    type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
                       { 
                         type: 'stack', width: L.tagIcz, backgroundColor: C.jiBg, borderRadius: 4, padding: [1, 0], alignItems: 'center',
@@ -285,9 +283,8 @@ export default async function(ctx) {
                       { type: 'text', text: rawJi, font: { size: getDynFz(rawJi, L.txtFz), weight: 'medium' }, textColor: C.dim, flex: 1 }
                     ]
                   },
-                  // 🌟 冲煞运势：同上
                   {
-                    type: 'stack', direction: 'row', gap: 4,
+                    type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
                       { 
                         type: 'stack', width: L.tagIcz, alignItems: 'center', 
@@ -311,14 +308,14 @@ export default async function(ctx) {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
                   { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:leaf.fill', color: C.ok, width: L.botIcz, height: L.botIcz }] },
-                  { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 2 }
+                  { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1 }
                 ]
               },
               {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
                   { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:paperplane.fill', color: C.warn, width: L.botIcz, height: L.botIcz }] },
-                  { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1, maxLines: 2 }
+                  { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1 }
                 ]
               }
             ]
