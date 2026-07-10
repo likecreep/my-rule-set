@@ -7,7 +7,7 @@ export default async function(ctx) {
   // ── 1. 动态侦测小组件尺寸 ──
   const family = String(ctx.widgetFamily || '').toLowerCase();
   const isLarge = family === 'systemlarge' || family === 'systemextralarge';
-
+  const isCompact = !isLarge;
   // ── 2. Tokyo Night 黑曜石双态色彩令牌 ──
   const C = {
     bg:       { light: '#EEF1FF', dark: '#16161E' }, 
