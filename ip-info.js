@@ -34,7 +34,7 @@ export default async function(ctx) {
 
   // ── 3. 像素级对标尺寸体系 ──
   const layout = {
-    padding:    isLarge ? [10, 12, 10, 12] : [12, 12, 12, 12], 
+    padding:    isLarge ? [0, 0, 0, 0] : [0, 0, 0, 0], 
     headerFz:   13,  
     headerIcz:  17,  
     timeFz:     10,  
