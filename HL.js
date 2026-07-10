@@ -29,7 +29,8 @@ export default async function(ctx) {
     jiTxt:    { light: '#D50057', dark: '#FF007F' }, // 霓虹粉
     fortTxt:  { light: '#6200EA', dark: '#B026FF' }, // 迷幻紫
     termTxt:  { light: '#E65100', dark: '#FFAB00' }, // 荧光橙
-    holiTxt:  { light: '#2962FF', dark: '#00E5FF' }  // 脉冲蓝
+    holiTxt:  { light: '#2962FF', dark: '#00E5FF' },  // 脉冲蓝
+    timeTxt:  { light: '#D97706', dark: '#FFEA00' }  // 👈 新增：电浆黄 (用于时辰)
   };
 
   // ── 3. 极限空间响应式引擎 ──
@@ -277,7 +278,7 @@ export default async function(ctx) {
                     children: [
                       { type: 'text', text: `${ganzhiFull} · ${obj.term ? `今日${obj.term}` : `当前${currentTerm}`}`, font: { size: L.gzFz, weight: 'bold' }, textColor: C.accent, minScale: 0.8 },
                       { type: 'spacer' },
-                      { type: 'text', text: shichenStr, font: { size: L.shichenFz, weight: 'bold' }, textColor: C.dim } // 未要求修改保留 dim
+                      { type: 'text', text: shichenStr, font: { size: L.shichenFz, weight: 'bold' }, textColor: C.timeTxt} // 时辰色
                     ]
                   },
                   {
