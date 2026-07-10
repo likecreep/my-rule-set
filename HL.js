@@ -1,6 +1,6 @@
 /**
  * 📅 日历 / 老黄历 (Tokyo Night 原生流式终极版)
- * 🎨 100% 官方 API 合规 / 绝对等高切片 / 无限换行
+ * 🎨 100% 官方 API 合规 / 纯弹簧均分留白 / 无限换行
  * ==========================================
  */
 export default async function(ctx) {
@@ -223,7 +223,7 @@ export default async function(ctx) {
           {
             type: 'stack', direction: 'row', gap: 12, flex: 1, 
             children: [
-              // 🌟 左侧：巨幅日期 (不加 flex: 1，靠上下 spacer 纯自然垂直居中)
+              // 🌟 左侧：巨幅日期 (靠上下 spacer 纯自然垂直居中)
               {
                 type: 'stack', direction: 'column',
                 children: [
@@ -243,62 +243,67 @@ export default async function(ctx) {
                 ]
               },
               
-              // 🌟 右侧：绝对三等分切片布局
+              // 🌟 右侧：完全移除内部元素的 flex: 1，纯靠弹簧平分间距
               {
                 type: 'stack', direction: 'column', flex: 1,
                 children: [
-                  // 1. 干支时辰 (给下方留出 2px 极小缝隙)
+                  // 1. 干支时辰
                   {
                     type: 'stack', direction: 'row', alignItems: 'center',
-                    padding: [0, 0, 2, 0], 
                     children: [
                       { type: 'text', text: `${ganzhiFull} · ${obj.term ? `今日${obj.term}` : `当前${currentTerm}`}`, font: { size: L.gzFz, weight: 'bold' }, textColor: C.accent, minScale: 0.8 },
                       { type: 'spacer' },
                       { type: 'text', text: shichenStr, font: { size: L.shichenFz, weight: 'bold' }, textColor: C.dim }
                     ]
                   },
-                  // 2. 宜、忌、运势 三兄弟
-                  // 注意这里彻底删除了游离的 spacer，由子元素的 flex: 1 强行平分剩余全部空间！
+                  
+                  // 👉 弹簧 1：自动计算并平分剩余的空白
+                  { type: 'spacer' }, 
+                  
+                  // 2. 宜（注意这里删除了 flex: 1）
                   {
-                    type: 'stack', direction: 'column', flex: 1, gap: 2, // 仅保留 2px 安全间距防粘连
+                    type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
-                      // 🌟 宜：切片 1 (强制 flex: 1)
-                      {
-                        // 加上 alignItems: 'center'，让 Tag 始终浮在整个切片的垂直正中间，无论文字是 1 行还是 2 行都会极度平稳
-                        type: 'stack', direction: 'row', alignItems: 'center', flex: 1, gap: 4,
-                        children: [
-                          { 
-                            type: 'stack', direction: 'column', width: L.tagBoxW, backgroundColor: C.yiBg, borderRadius: 4, padding: [2, 0, 2, 0], alignItems: 'center',
-                            children: [{ type: 'text', text: "宜", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.ok }] 
-                          },
-                          { type: 'text', text: rawYi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.6 } 
-                        ]
+                      { 
+                        type: 'stack', direction: 'column', width: L.tagBoxW, backgroundColor: C.yiBg, borderRadius: 4, padding: [2, 0, 2, 0], alignItems: 'center',
+                        children: [{ type: 'text', text: "宜", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.ok }] 
                       },
-                      // 🌟 忌：切片 2 (强制 flex: 1)
-                      {
-                        type: 'stack', direction: 'row', alignItems: 'center', flex: 1, gap: 4,
-                        children: [
-                          { 
-                            type: 'stack', direction: 'column', width: L.tagBoxW, backgroundColor: C.jiBg, borderRadius: 4, padding: [2, 0, 2, 0], alignItems: 'center',
-                            children: [{ type: 'text', text: "忌", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.fail }] 
-                          },
-                          { type: 'text', text: rawJi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.6 }
-                        ]
-                      },
-                      // 🌟 冲煞运势：切片 3 (强制 flex: 1)
-                      {
-                        type: 'stack', direction: 'row', alignItems: 'center', flex: 1, gap: 4,
-                        children: [
-                          { 
-                            type: 'stack', direction: 'column', width: L.tagBoxW, padding: [2, 0, 2, 0], alignItems: 'center', 
-                            children: [{ type: 'image', src: 'sf-symbol:flame.fill', color: C.fail, width: L.chongIcz, height: L.chongIcz }] 
-                          },
-                          { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.6 }
-                        ]
-                      }
+                      { type: 'text', text: rawYi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.6 } 
                     ]
-                  }
-                  // 🚨 彻底删除了运势底部的 spacer！区域会直接贴紧下方的横线。
+                  },
+                  
+                  // 👉 弹簧 2：无论上方“宜”换成多少行，系统都会保证弹簧2的高度等于弹簧1和弹簧3
+                  { type: 'spacer' }, 
+                  
+                  // 3. 忌（注意这里删除了 flex: 1）
+                  {
+                    type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
+                    children: [
+                      { 
+                        type: 'stack', direction: 'column', width: L.tagBoxW, backgroundColor: C.jiBg, borderRadius: 4, padding: [2, 0, 2, 0], alignItems: 'center',
+                        children: [{ type: 'text', text: "忌", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.fail }] 
+                      },
+                      { type: 'text', text: rawJi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.6 }
+                    ]
+                  },
+                  
+                  // 👉 弹簧 3：视觉留白绝对等距的关键
+                  { type: 'spacer' }, 
+                  
+                  // 4. 冲煞运势（注意这里删除了 flex: 1）
+                  {
+                    type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
+                    children: [
+                      { 
+                        type: 'stack', direction: 'column', width: L.tagBoxW, padding: [2, 0, 2, 0], alignItems: 'center', 
+                        children: [{ type: 'image', src: 'sf-symbol:flame.fill', color: C.fail, width: L.chongIcz, height: L.chongIcz }] 
+                      },
+                      { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.6 }
+                    ]
+                  },
+                  
+                  // 👉 运势和横线之间的极小固定防粘连空间（让更多的空间能给到上面的三个大弹簧）
+                  { type: 'spacer', length: L.botGap } 
                 ]
               }
             ]
