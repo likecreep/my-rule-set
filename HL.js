@@ -27,7 +27,7 @@ export default async function(ctx) {
     astroTxt: { light: '#0091EA', dark: '#00FFFF' }, // 赛博青
     yiTxt:    { light: '#00A86B', dark: '#39FF14' }, // 矩阵绿
     jiTxt:    { light: '#D50057', dark: '#FF007F' }, // 霓虹粉
-    fortTxt:  { light: '#475569', dark: '#E2E8F0' }, // 全息白 / 钛银色 (终端数据流质感)
+    fortTxt:  { light: '#D50000', dark: '#FF1744' }, // 电弧红 (极度亮丽，完美契合“冲煞”的赛博警示感)
     termTxt:  { light: '#E65100', dark: '#FFAB00' }, // 荧光橙
     holiTxt:  { light: '#2962FF', dark: '#00E5FF' },  // 脉冲蓝
     timeTxt:  { light: '#D97706', dark: '#FFEA00' }  // 👈 新增：电浆黄 (用于时辰)
