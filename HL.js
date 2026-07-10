@@ -265,7 +265,7 @@ export default async function(ctx) {
                       // 🌟 宜：切片 1 (强制 flex: 1)
                       {
                         // 加上 alignItems: 'center'，让 Tag 始终浮在整个切片的垂直正中间，无论文字是 1 行还是 2 行都会极度平稳
-                        type: 'stack', direction: 'row', alignItems: 'center', flex: 1, gap: 4,
+                        type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
                         children: [
                           { 
                             type: 'stack', direction: 'column', width: L.tagBoxW, backgroundColor: C.yiBg, borderRadius: 4, padding: [2, 0, 2, 0], alignItems: 'center',
@@ -274,9 +274,10 @@ export default async function(ctx) {
                           { type: 'text', text: rawYi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.6 } 
                         ]
                       },
+                      { type: 'spacer' },
                       // 🌟 忌：切片 2 (强制 flex: 1)
                       {
-                        type: 'stack', direction: 'row', alignItems: 'center', flex: 1, gap: 4,
+                        type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
                         children: [
                           { 
                             type: 'stack', direction: 'column', width: L.tagBoxW, backgroundColor: C.jiBg, borderRadius: 4, padding: [2, 0, 2, 0], alignItems: 'center',
@@ -285,9 +286,10 @@ export default async function(ctx) {
                           { type: 'text', text: rawJi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.6 }
                         ]
                       },
+                      { type: 'spacer' },
                       // 🌟 冲煞运势：切片 3 (强制 flex: 1)
                       {
-                        type: 'stack', direction: 'row', alignItems: 'center', flex: 1, gap: 4,
+                        type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
                         children: [
                           { 
                             type: 'stack', direction: 'column', width: L.tagBoxW, padding: [2, 0, 2, 0], alignItems: 'center', 
