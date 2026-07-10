@@ -1,6 +1,6 @@
 /**
  * 📅 日历 / 老黄历 (Tokyo Night 原生流式终极版)
- * 🎨 100% 官方 API 合规 / 动态极限缩放 (minScale) / 原生无限换行
+ * 🎨 100% 官方 API 合规 / 弹性匀称分布 / 无限换行
  * ==========================================
  */
 export default async function(ctx) {
@@ -27,7 +27,6 @@ export default async function(ctx) {
 
   // ── 3. 极限空间响应式引擎 ──
   const L = {
-    // 🌟 修正 padding 数组格式：必须是完整的 [top, right, bottom, left]
     pad:        isLarge ? [16, 20, 12, 20] : [10, 14, 8, 14],
     mainGap:    isLarge ? 6 : 2,    
     headFz:     isLarge ? 16 : 14,
@@ -37,16 +36,14 @@ export default async function(ctx) {
     weekFz:     isLarge ? 14 : 11,
     dayFz:      isLarge ? 48 : 28,  
     cnFz:       isLarge ? 14 : 11,
-    // 🌟 修正 lunarPad：补齐 4 位数组
     lunarPad:   isLarge ? [10, 16, 10, 16] : [6, 10, 6, 10],
-    rightGap:   isLarge ? 4 : 2,    
     gzFz:       isLarge ? 14 : 12,
     shichenFz:  isLarge ? 13 : 11,
+    tagBoxW:    isLarge ? 22 : 18,  // 🌟 专门给宜忌留出足够宽的盒子
     tagFz:      isLarge ? 12 : 10,
-    tagIcz:     isLarge ? 18 : 15, 
+    chongIcz:   isLarge ? 14 : 12,
     txtFz:      isLarge ? 15 : 13.5,
     chongFz:    isLarge ? 13 : 12,
-    chongIcz:   isLarge ? 14 : 12,
     botFz:      isLarge ? 13 : 11,
     botIcz:     isLarge ? 14 : 12,
     botGap:     isLarge ? 4 : 2 
@@ -226,31 +223,31 @@ export default async function(ctx) {
           {
             type: 'stack', direction: 'row', gap: 12, flex: 1, 
             children: [
-              // 🌟 左侧：巨幅日期 (使用 flex: 1 和上下 spacer 实现纯正的 Flex 垂直居中)
+              // 左侧：巨幅日期 (不加 flex: 1，靠上下 spacer 自然垂直居中)
               {
                 type: 'stack', direction: 'column',
                 children: [
-                  { type: 'spacer' }, // 顶部弹性垫片
+                  { type: 'spacer' }, 
                   {
                     type: 'stack', direction: 'column', alignItems: 'center',
                     backgroundColor: C.lunarBg, borderRadius: 10, padding: L.lunarPad, 
                     children: [
                       { type: 'text', text: `周${WEEK}`, font: { size: L.weekFz, weight: 'bold' }, textColor: C.accent }, 
                       { type: 'spacer', length: 2 },
-                      // 移除了瞎编的 family: 'rounded'
                       { type: 'text', text: `${D}`, font: { size: L.dayFz, weight: 'heavy' }, textColor: C.text }, 
                       { type: 'spacer', length: 2 },
                       { type: 'text', text: obj.cn, font: { size: L.cnFz, weight: 'bold' }, textColor: C.accent } 
                     ]
                   },
-                  { type: 'spacer' }  // 底部弹性垫片
+                  { type: 'spacer' } 
                 ]
               },
-              // 🌟 右侧：无限制流式换行布局 (同理，使用上下 spacer 垂直居中)
+              
+              // 右侧：无限制流式换行布局 
+              // 🌟 核心：删除了死板的 gap，完全依靠内部的 { type: 'spacer' } 平分剩余空间
               {
-                type: 'stack', direction: 'column', gap: L.rightGap, flex: 1,
+                type: 'stack', direction: 'column', flex: 1,
                 children: [
-                  { type: 'spacer' }, // 顶部弹性垫片
                   {
                     type: 'stack', direction: 'row', alignItems: 'center',
                     children: [
@@ -259,39 +256,50 @@ export default async function(ctx) {
                       { type: 'text', text: shichenStr, font: { size: L.shichenFz, weight: 'bold' }, textColor: C.dim }
                     ]
                   },
+                  
+                  { type: 'spacer' }, // 👉 自动平分高度弹簧 1
+                  
+                  // 🌟 宜：标签 Stack 改为 direction: 'column' 以保证水平绝对居中，并将左右 padding 归零
                   {
                     type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
-                      // 🌟 修正标签 padding: 补齐 4 位数组
                       { 
-                        type: 'stack', width: L.tagIcz, backgroundColor: C.yiBg, borderRadius: 4, padding: [1, 4, 1, 4], alignItems: 'center',
+                        type: 'stack', direction: 'column', width: L.tagBoxW, backgroundColor: C.yiBg, borderRadius: 4, padding: [2, 0, 2, 0], alignItems: 'center',
                         children: [{ type: 'text', text: "宜", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.ok }] 
                       },
                       { type: 'text', text: rawYi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.6 } 
                     ]
                   },
+                  
+                  { type: 'spacer' }, // 👉 自动平分高度弹簧 2
+                  
+                  // 🌟 忌：同上
                   {
                     type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
-                      // 🌟 修正标签 padding: 补齐 4 位数组
                       { 
-                        type: 'stack', width: L.tagIcz, backgroundColor: C.jiBg, borderRadius: 4, padding: [1, 4, 1, 4], alignItems: 'center',
+                        type: 'stack', direction: 'column', width: L.tagBoxW, backgroundColor: C.jiBg, borderRadius: 4, padding: [2, 0, 2, 0], alignItems: 'center',
                         children: [{ type: 'text', text: "忌", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.fail }] 
                       },
                       { type: 'text', text: rawJi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.6 }
                     ]
                   },
+                  
+                  { type: 'spacer' }, // 👉 自动平分高度弹簧 3
+                  
+                  // 🌟 冲煞运势：同上
                   {
                     type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
                       { 
-                        type: 'stack', width: L.tagIcz, alignItems: 'center', 
+                        type: 'stack', direction: 'column', width: L.tagBoxW, padding: [2, 0, 2, 0], alignItems: 'center', 
                         children: [{ type: 'image', src: 'sf-symbol:flame.fill', color: C.fail, width: L.chongIcz, height: L.chongIcz }] 
                       },
                       { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.6 }
                     ]
                   },
-                  { type: 'spacer' }  // 底部弹性垫片
+                  
+                  { type: 'spacer', length: L.botGap } // 👉 底部留下一点极小的距离防粘连，把空间全让给上方
                 ]
               }
             ]
@@ -306,14 +314,14 @@ export default async function(ctx) {
               {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
-                  { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:leaf.fill', color: C.ok, width: L.botIcz, height: L.botIcz }] },
+                  { type: 'stack', width: L.tagBoxW, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:leaf.fill', color: C.ok, width: L.botIcz, height: L.botIcz }] },
                   { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.8 }
                 ]
               },
               {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
-                  { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:paperplane.fill', color: C.warn, width: L.botIcz, height: L.botIcz }] },
+                  { type: 'stack', width: L.tagBoxW, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:paperplane.fill', color: C.warn, width: L.botIcz, height: L.botIcz }] },
                   { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.8 }
                 ]
               }
