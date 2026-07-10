@@ -1,6 +1,6 @@
 /**
  * 📅 日历 / 老黄历 (Tokyo Night 原生流式终极版)
- * 🎨 极简代码架构 / 原生无限换行 / 动态字号引擎 / 像素级对齐
+ * 🎨 100% 官方 API 合规 / 动态极限缩放 (minScale) / 原生无限换行
  * ==========================================
  */
 export default async function(ctx) {
@@ -25,39 +25,32 @@ export default async function(ctx) {
     jiBg:     { light: '#FF47571A', dark: '#FF2A6D1A' }
   };
 
-  // ── 3. 响应式尺寸引擎 (极限压榨中号纵向空间) ──
+  // ── 3. 极限空间响应式引擎 ──
   const L = {
-    // 🌟 核心调整 1：大幅缩减中号的上下留白，给中间换行让出物理空间
-    pad:        isLarge ? [18, 22, 14, 22] : [10, 16, 6, 16],
-    mainGap:    isLarge ? 8 : 2, // 分割线前后的间距压到极小             
-    headFz:     isLarge ? 16 : 13,
+    // 🌟 修正 padding 数组格式：必须是完整的 [top, right, bottom, left]
+    pad:        isLarge ? [16, 20, 12, 20] : [10, 14, 8, 14],
+    mainGap:    isLarge ? 6 : 2,    
+    headFz:     isLarge ? 16 : 14,
     headIcz:    isLarge ? 18 : 14,
-    astroFz:    isLarge ? 14 : 11,
+    astroFz:    isLarge ? 14 : 12,
     astroIcz:   isLarge ? 14 : 12,
-    weekFz:     isLarge ? 13 : 10,
-    dayFz:      isLarge ? 46 : 24,
-    cnFz:       isLarge ? 13 : 10,
-    lunarPad:   isLarge ? [10, 16] : [6, 10],
-    rightGap:   isLarge ? 6 : 2, // 宜忌行距压缩
-    gzFz:       isLarge ? 14 : 11,
-    shichenFz:  isLarge ? 13 : 10,
-    tagFz:      isLarge ? 11 : 9,
-    tagIcz:     isLarge ? 16 : 14, 
-    txtFz:      isLarge ? 14 : 10.5, // 中号字号微调，确保两行能轻松塞下
-    chongFz:    isLarge ? 13 : 10,
-    chongIcz:   isLarge ? 13 : 11,
-    botFz:      isLarge ? 13 : 10,
-    botIcz:     isLarge ? 14 : 11,
-    botGap:     isLarge ? 6 : 2 
+    weekFz:     isLarge ? 14 : 11,
+    dayFz:      isLarge ? 48 : 28,  
+    cnFz:       isLarge ? 14 : 11,
+    // 🌟 修正 lunarPad：补齐 4 位数组
+    lunarPad:   isLarge ? [10, 16, 10, 16] : [6, 10, 6, 10],
+    rightGap:   isLarge ? 4 : 2,    
+    gzFz:       isLarge ? 14 : 12,
+    shichenFz:  isLarge ? 13 : 11,
+    tagFz:      isLarge ? 12 : 10,
+    tagIcz:     isLarge ? 18 : 15, 
+    txtFz:      isLarge ? 15 : 13.5,
+    chongFz:    isLarge ? 13 : 12,
+    chongIcz:   isLarge ? 14 : 12,
+    botFz:      isLarge ? 13 : 11,
+    botIcz:     isLarge ? 14 : 12,
+    botGap:     isLarge ? 4 : 2 
   };
-
-  function getDynFz(text, defaultSize) {
-    if (!text) return defaultSize;
-    const len = text.length;
-    if (len > 35) return defaultSize - 2; 
-    if (len > 22) return defaultSize - 1; 
-    return defaultSize;
-  }
 
   const now = new Date(Date.now() + (new Date().getTimezoneOffset() + 480) * 60000);
   const [Y, M, D] = [now.getFullYear(), now.getMonth() + 1, now.getDate()];
@@ -233,54 +226,59 @@ export default async function(ctx) {
           {
             type: 'stack', direction: 'row', gap: 12, flex: 1, 
             children: [
-              // 左侧：巨幅日期
+              // 🌟 左侧：巨幅日期 (使用 flex: 1 和上下 spacer 实现纯正的 Flex 垂直居中)
               {
-                type: 'stack', direction: 'column', justifyContent: 'center',
+                type: 'stack', direction: 'column', flex: 1,
                 children: [
+                  { type: 'spacer' }, // 顶部弹性垫片
                   {
-                    type: 'stack', direction: 'column', alignItems: 'center', justifyContent: 'center',
+                    type: 'stack', direction: 'column', alignItems: 'center',
                     backgroundColor: C.lunarBg, borderRadius: 10, padding: L.lunarPad, 
                     children: [
-                      { type: 'text', text: `周${WEEK}`, font: { size: L.weekFz, weight: 'bold' }, textColor: C.accent, maxLines: 1 }, 
+                      { type: 'text', text: `周${WEEK}`, font: { size: L.weekFz, weight: 'bold' }, textColor: C.accent }, 
                       { type: 'spacer', length: 2 },
-                      { type: 'text', text: `${D}`, font: { size: L.dayFz, weight: 'heavy', family: 'rounded' }, textColor: C.text, maxLines: 1 }, 
+                      // 移除了瞎编的 family: 'rounded'
+                      { type: 'text', text: `${D}`, font: { size: L.dayFz, weight: 'heavy' }, textColor: C.text }, 
                       { type: 'spacer', length: 2 },
-                      { type: 'text', text: obj.cn, font: { size: L.cnFz, weight: 'bold' }, textColor: C.accent, maxLines: 1 } 
+                      { type: 'text', text: obj.cn, font: { size: L.cnFz, weight: 'bold' }, textColor: C.accent } 
                     ]
-                  }
+                  },
+                  { type: 'spacer' }  // 底部弹性垫片
                 ]
               },
-              // 右侧：无限制流式换行布局
+              // 🌟 右侧：无限制流式换行布局 (同理，使用上下 spacer 垂直居中)
               {
-                type: 'stack', direction: 'column', gap: L.rightGap, flex: 1, justifyContent: 'center',
+                type: 'stack', direction: 'column', gap: L.rightGap, flex: 1,
                 children: [
+                  { type: 'spacer' }, // 顶部弹性垫片
                   {
                     type: 'stack', direction: 'row', alignItems: 'center',
                     children: [
-                      { type: 'text', text: `${ganzhiFull} · ${obj.term ? `今日${obj.term}` : `当前${currentTerm}`}`, font: { size: L.gzFz, weight: 'bold' }, textColor: C.accent },
+                      { type: 'text', text: `${ganzhiFull} · ${obj.term ? `今日${obj.term}` : `当前${currentTerm}`}`, font: { size: L.gzFz, weight: 'bold' }, textColor: C.accent, minScale: 0.8 },
                       { type: 'spacer' },
                       { type: 'text', text: shichenStr, font: { size: L.shichenFz, weight: 'bold' }, textColor: C.dim }
                     ]
                   },
-                  // 🌟 核心调整 2：加入 alignItems: 'start' 保证 Tag 始终在首行对齐，彻底删除 maxLines
                   {
                     type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
+                      // 🌟 修正标签 padding: 补齐 4 位数组
                       { 
-                        type: 'stack', width: L.tagIcz, backgroundColor: C.yiBg, borderRadius: 4, padding: [1, 0], alignItems: 'center',
+                        type: 'stack', width: L.tagIcz, backgroundColor: C.yiBg, borderRadius: 4, padding: [1, 4, 1, 4], alignItems: 'center',
                         children: [{ type: 'text', text: "宜", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.ok }] 
                       },
-                      { type: 'text', text: rawYi, font: { size: getDynFz(rawYi, L.txtFz), weight: 'medium' }, textColor: C.dim, flex: 1 } 
+                      { type: 'text', text: rawYi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.6 } 
                     ]
                   },
                   {
                     type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                     children: [
+                      // 🌟 修正标签 padding: 补齐 4 位数组
                       { 
-                        type: 'stack', width: L.tagIcz, backgroundColor: C.jiBg, borderRadius: 4, padding: [1, 0], alignItems: 'center',
+                        type: 'stack', width: L.tagIcz, backgroundColor: C.jiBg, borderRadius: 4, padding: [1, 4, 1, 4], alignItems: 'center',
                         children: [{ type: 'text', text: "忌", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.fail }] 
                       },
-                      { type: 'text', text: rawJi, font: { size: getDynFz(rawJi, L.txtFz), weight: 'medium' }, textColor: C.dim, flex: 1 }
+                      { type: 'text', text: rawJi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.6 }
                     ]
                   },
                   {
@@ -290,9 +288,10 @@ export default async function(ctx) {
                         type: 'stack', width: L.tagIcz, alignItems: 'center', 
                         children: [{ type: 'image', src: 'sf-symbol:flame.fill', color: C.fail, width: L.chongIcz, height: L.chongIcz }] 
                       },
-                      { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.dim, flex: 1 }
+                      { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.6 }
                     ]
-                  }
+                  },
+                  { type: 'spacer' }  // 底部弹性垫片
                 ]
               }
             ]
@@ -308,14 +307,14 @@ export default async function(ctx) {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
                   { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:leaf.fill', color: C.ok, width: L.botIcz, height: L.botIcz }] },
-                  { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1 }
+                  { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.8 }
                 ]
               },
               {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
                   { type: 'stack', width: L.tagIcz, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:paperplane.fill', color: C.warn, width: L.botIcz, height: L.botIcz }] },
-                  { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1 }
+                  { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.8 }
                 ]
               }
             ]
