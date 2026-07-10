@@ -21,8 +21,8 @@ export default async function(ctx) {
     warn:     { light: '#F59E0B', dark: '#FFD300' }, 
     fail:     { light: '#FF4757', dark: '#FF2A6D' }, 
     lunarBg:  { light: '#7446D81A', dark: '#B765FF1A' }, 
-    yiBg:     { light: '#10B9811A', dark: '#C7FF181A' }, 
-    jiBg:     { light: '#FF47571A', dark: '#FF2A6D1A' },
+    yiBg:     { light: '#10B9811A', dark: '#C7FF184D' }, 
+    jiBg:     { light: '#FF47571A', dark: '#FF2A6D4D' },
     // 👇 新增：赛博朋克专属文字色彩令牌
     astroTxt: { light: '#0091EA', dark: '#00FFFF' }, // 赛博青
     yiTxt:    { light: '#00A86B', dark: '#39FF14' }, // 矩阵绿
