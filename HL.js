@@ -22,7 +22,14 @@ export default async function(ctx) {
     fail:     { light: '#FF4757', dark: '#FF2A6D' }, 
     lunarBg:  { light: '#7446D81A', dark: '#B765FF1A' }, 
     yiBg:     { light: '#10B9811A', dark: '#C7FF181A' }, 
-    jiBg:     { light: '#FF47571A', dark: '#FF2A6D1A' }
+    jiBg:     { light: '#FF47571A', dark: '#FF2A6D1A' },
+    // 👇 新增：赛博朋克专属文字色彩令牌
+    astroTxt: { light: '#0091EA', dark: '#00FFFF' }, // 赛博青
+    yiTxt:    { light: '#00A86B', dark: '#39FF14' }, // 矩阵绿
+    jiTxt:    { light: '#D50057', dark: '#FF007F' }, // 霓虹粉
+    fortTxt:  { light: '#6200EA', dark: '#B026FF' }, // 迷幻紫
+    termTxt:  { light: '#E65100', dark: '#FFAB00' }, // 荧光橙
+    holiTxt:  { light: '#2962FF', dark: '#00E5FF' }  // 脉冲蓝
   };
 
   // ── 3. 极限空间响应式引擎 ──
@@ -230,7 +237,7 @@ export default async function(ctx) {
               { type: 'text', text: `${Y}年${M}月${D}日`, font: { size: L.headFz, weight: 'heavy' }, textColor: C.text },
               { type: 'spacer' },
               { type: 'image', src: 'sf-symbol:sparkles', color: C.warn, width: L.astroIcz, height: L.astroIcz },
-              { type: 'text', text: astro, font: { size: L.astroFz, weight: 'bold' }, textColor: C.dim }
+              { type: 'text', text: astro, font: { size: L.astroFz, weight: 'bold' }, textColor: C.astroTxt } // 👈 修改为星座色
             ]
           },
           
@@ -270,7 +277,7 @@ export default async function(ctx) {
                     children: [
                       { type: 'text', text: `${ganzhiFull} · ${obj.term ? `今日${obj.term}` : `当前${currentTerm}`}`, font: { size: L.gzFz, weight: 'bold' }, textColor: C.accent, minScale: 0.8 },
                       { type: 'spacer' },
-                      { type: 'text', text: shichenStr, font: { size: L.shichenFz, weight: 'bold' }, textColor: C.dim }
+                      { type: 'text', text: shichenStr, font: { size: L.shichenFz, weight: 'bold' }, textColor: C.dim } // 未要求修改保留 dim
                     ]
                   },
                   {
@@ -283,7 +290,7 @@ export default async function(ctx) {
                             type: 'stack', direction: 'column', width: L.tagBoxW, backgroundColor: C.yiBg, borderRadius: 4, padding: [2, 0, 2, 0], alignItems: 'center',
                             children: [{ type: 'text', text: "宜", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.ok }] 
                           },
-                          { type: 'text', text: rawYi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.6 } 
+                          { type: 'text', text: rawYi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.yiTxt, flex: 1, minScale: 0.6 } // 👈 修改为宜色
                         ]
                       },
                       { type: 'spacer' },
@@ -294,7 +301,7 @@ export default async function(ctx) {
                             type: 'stack', direction: 'column', width: L.tagBoxW, backgroundColor: C.jiBg, borderRadius: 4, padding: [2, 0, 2, 0], alignItems: 'center',
                             children: [{ type: 'text', text: "忌", font: { size: L.tagFz, weight: 'heavy' }, textColor: C.fail }] 
                           },
-                          { type: 'text', text: rawJi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.6 }
+                          { type: 'text', text: rawJi, font: { size: L.txtFz, weight: 'medium' }, textColor: C.jiTxt, flex: 1, minScale: 0.6 } // 👈 修改为忌色
                         ]
                       },
                       { type: 'spacer' },
@@ -305,7 +312,7 @@ export default async function(ctx) {
                             type: 'stack', direction: 'column', width: L.tagBoxW, padding: [2, 0, 2, 0], alignItems: 'center', 
                             children: [{ type: 'image', src: 'sf-symbol:flame.fill', color: C.fail, width: L.chongIcz, height: L.chongIcz }] 
                           },
-                          { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.6 }
+                          { type: 'text', text: chongshaInfo, font: { size: L.chongFz, weight: 'medium' }, textColor: C.fortTxt, flex: 1, minScale: 0.6 } // 👈 修改为运势色
                         ]
                       }
                     ]
@@ -325,14 +332,14 @@ export default async function(ctx) {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
                   { type: 'stack', width: L.tagBoxW, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:leaf.fill', color: C.ok, width: L.botIcz, height: L.botIcz }] },
-                  { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.8 }
+                  { type: 'text', text: upcomingTerms.length > 0 ? upcomingTerms.join(" · ") : "近 90 天无节气", font: { size: L.botFz, weight: 'medium' }, textColor: C.termTxt, flex: 1, minScale: 0.8 } // 👈 修改为节气色
                 ]
               },
               {
                 type: 'stack', direction: 'row', alignItems: 'start', gap: 4,
                 children: [
                   { type: 'stack', width: L.tagBoxW, alignItems: 'center', children: [{ type: 'image', src: 'sf-symbol:paperplane.fill', color: C.warn, width: L.botIcz, height: L.botIcz }] },
-                  { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.dim, flex: 1, minScale: 0.8 }
+                  { type: 'text', text: finalHolidayText, font: { size: L.botFz, weight: 'medium' }, textColor: C.holiTxt, flex: 1, minScale: 0.8 } // 👈 修改为假日色
                 ]
               }
             ]
