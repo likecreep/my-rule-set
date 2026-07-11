@@ -24,13 +24,13 @@ export default async function(ctx) {
     yiBg:     { light: '#10B9811A', dark: '#C7FF184D' }, 
     jiBg:     { light: '#FF47571A', dark: '#FF2A6D4D' },
     // 👇 新增：赛博朋克专属文字色彩令牌
-    astroTxt: { light: '#0091EA', dark: '#00FFFF' }, // 赛博青
+    astroTxt: { light: '#D97706', dark: '#FFEA00' }, // 电浆黄
     yiTxt:    { light: '#00A86B', dark: '#39FF14' }, // 矩阵绿
     jiTxt:    { light: '#D50057', dark: '#FF007F' }, // 霓虹粉
     fortTxt:  { light: '#D50000', dark: '#FF1744' }, // 电弧红 (极度亮丽，完美契合“冲煞”的赛博警示感)
     termTxt:  { light: '#E65100', dark: '#FFAB00' }, // 荧光橙
     holiTxt:  { light: '#2962FF', dark: '#00E5FF' },  // 脉冲蓝
-    timeTxt:  { light: '#D97706', dark: '#FFEA00' }  // 👈 新增：电浆黄 (用于时辰)
+    timeTxt:  { light: '#0091EA', dark: '#00FFFF'} // 👈 新增： 赛博青(用于时辰)
   };
 
   // ── 3. 极限空间响应式引擎 ──
