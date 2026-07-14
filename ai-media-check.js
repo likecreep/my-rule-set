@@ -280,7 +280,7 @@ export default async function(ctx) {
 
   const resultInfo = (result) => {
     const available = result && result.code !== 'ERR';
-    let region = '--';
+    let region = result.region || '--';
     let ms = result?.ms || 0;
     
     if (available) {
@@ -293,7 +293,7 @@ export default async function(ctx) {
       } else {
         region = `${emoji} ${base}${suffix}`;
       }
-    }
+    } else{region=`${region==='--'?getFlagEmoji(region):''} ${region}${suffix}`;}
     return { available, region, ms };
   };
 
@@ -346,7 +346,7 @@ export default async function(ctx) {
         font: { size: layout.listFz, weight: 'semibold' },
         textColor: C.text, flex: 1, maxLines: 1
       },
-      ...(item.info.available ? [{
+      ...(item.info.ms ? [{
          type: 'text', text: `${item.info.ms}ms`,
          font: { size: isCompact ? 8 : 10, weight: 'medium', design: 'monospaced' },
          textColor: C.dim, maxLines: 1
