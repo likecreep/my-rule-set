@@ -292,7 +292,7 @@ export default async function(ctx) {
       } else {
         region = `${emoji} ${base}${suffix}`;
       }
-    } else{region=`${region==='--'?getFlagEmoji(region):''} ${region}${suffix}`;}
+    } else{region=`${!(region==='--')?getFlagEmoji(region):''} ${region}${suffix}`;}
     return { available, region, ms };
   };
 
