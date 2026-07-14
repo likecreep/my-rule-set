@@ -282,10 +282,9 @@ export default async function(ctx) {
     const available = result && result.code !== 'ERR';
     let region = result.region || '--';
     let ms = result?.ms || 0;
-    
+    let suffix = result.suffix || '';
     if (available) {
       let base = result.region || 'US'; 
-      let suffix = result.suffix || '';
       let emoji = getFlagEmoji(base);
       
       if (base === 'UNKNOWN' || base === '--') {
