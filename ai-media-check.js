@@ -252,23 +252,55 @@ export default async function(ctx) {
     return { code: 'OK', region: region, ms };
   }
 
+  // ==== 地区三字码(Alpha-3)转二字码(Alpha-2)映射表 ====
+  const alpha3ToAlpha2Map = {
+    'USA': 'US', 'SGP': 'SG', 'JPN': 'JP', 'HKG': 'HK', 'TWN': 'TW',
+    'KOR': 'KR', 'GBR': 'GB', 'CAN': 'CA', 'AUS': 'AU', 'DEU': 'DE',
+    'FRA': 'FR', 'NLD': 'NL', 'MAC': 'MO', 'RUS': 'RU', 'IND': 'IN',
+    'MYS': 'MY', 'THA': 'TH', 'VNM': 'VN', 'PHL': 'PH', 'IDN': 'ID',
+    'BRA': 'BR', 'ARG': 'AR', 'TUR': 'TR', 'ZAF': 'ZA', 'ARE': 'AE',
+    'CHE': 'CH', 'SWE': 'SE', 'NOR': 'NO', 'DNK': 'DK', 'FIN': 'FI',
+    'ITA': 'IT', 'ESP': 'ES', 'PRT': 'PT', 'POL': 'PL', 'IRL': 'IE'
+  };
+
+  // ==== Gemini 明确封禁的地区列表（三字码） ====
+  const geminiBlockedCodes = ['CHN', 'RUS', 'BLR', 'CUB', 'IRN', 'PRK', 'SYR', 'HKG', 'MAC'];
+
   async function checkGemini() {
-    const ms = await exactPing('https://gemini.google.com/generate_204');
-    const res = await ctx.http.get('https://gemini.google.com', {
-      timeout: 5000, headers: commonHeaders, redirect: 'follow'
+    // 你的原版 exactPing，保留原本的测速逻辑
+    const ms = await exactPing('https://gemini.google.com/generate_204'); 
+    
+    // 发起网页请求获取地区信息
+    const res = await ctx.http.get('https://gemini.google.com/', {
+      timeout: 5000, 
+      headers: commonHeaders, // 直接复用你顶部定义的 commonHeaders (自带 UA)
+      redirect: 'follow'
     }).catch(() => null);
     
     if (!res) return { code: 'ERR', region: null, ms };
     
     const body = await getBody(res);
-    if (!body.includes('45631641,null,true')) return { code: 'ERR', region: null, ms };
 
-    let region = null;
-    const match = body.match(/,2,1,200,"([A-Z]{2,3})"/);
-    if (match && match[1]) region = match[1];
+    // 1. 严格提取 3 位大写字母的国家代码
+    const match = body.match(/,2,1,200,"([A-Z]{3})"/);
+    if (!match || !match[1]) {
+        // 匹配不到说明没加载出正确的 Gemini 框架数据
+        return { code: 'ERR', region: null, ms };
+    }
+
+    const alpha3Code = match[1];
+
+    // 2. 黑名单校验：如果在封禁列表中，直接判定为 ERR
+    if (geminiBlockedCodes.includes(alpha3Code)) {
+        return { code: 'ERR', region: null, ms };
+    }
+
+    // 3. 将三字码转换为二字码 (遇到未录入的冷门国家，兜底截取前两个字母)
+    const alpha2Code = alpha3ToAlpha2Map[alpha3Code] || alpha3Code.substring(0, 2);
     
-    return { code: 'OK', region: region || 'OK', ms };
+    return { code: 'OK', region: alpha2Code, ms };
   }
+
 
   const checks = [
     safe(checkYouTube), safe(checkNetflix), safe(checkDisney), 
