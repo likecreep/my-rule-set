@@ -267,7 +267,7 @@ export default async function(ctx) {
   const geminiBlockedCodes = ['CHN', 'RUS', 'BLR', 'CUB', 'IRN', 'PRK', 'SYR', 'HKG', 'MAC'];
 
   async function checkGemini() {
-    // 你的原版 exactPing，保留原本的测速逻辑
+    // 原版 exactPing，保留原本的测速逻辑
     const ms = await exactPing('https://gemini.google.com/generate_204'); 
     
     // 发起网页请求获取地区信息
@@ -290,13 +290,13 @@ export default async function(ctx) {
 
     const alpha3Code = match[1];
 
+        // 3. 将三字码转换为二字码 (遇到未录入的冷门国家，兜底截取前两个字母)
+    const alpha2Code = alpha3ToAlpha2Map[alpha3Code] || alpha3Code.substring(0, 2);
+
     // 2. 黑名单校验：如果在封禁列表中，直接判定为 ERR
     if (geminiBlockedCodes.includes(alpha3Code)) {
-        return { code: 'ERR', region: null, ms };
+        return { code: 'ERR', region: alpha2Code, ms };
     }
-
-    // 3. 将三字码转换为二字码 (遇到未录入的冷门国家，兜底截取前两个字母)
-    const alpha2Code = alpha3ToAlpha2Map[alpha3Code] || alpha3Code.substring(0, 2);
     
     return { code: 'OK', region: alpha2Code, ms };
   }
