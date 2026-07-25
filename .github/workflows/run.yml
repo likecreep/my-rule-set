@@ -1,60 +1,109 @@
-name: Generate routing rules for Surge
+name: Build Surge Reject Rules
 
 on:
-  push:
-    branches: [master]
+  # 每天北京时间 04:00 执行。
+  schedule:
+    - cron: "0 4 * * *"
+      timezone: "Asia/Shanghai"
 
+  # 允许在 Actions 页面手动执行。
   workflow_dispatch:
 
-  schedule:
-    - cron: "0 2 * * *"
+permissions:
+  contents: write
+
+# 防止定时任务和手动任务同时推送 release 分支。
+concurrency:
+  group: build-surge-reject
+  cancel-in-progress: false
 
 jobs:
   build:
-    name: Build
+    name: Merge and publish reject.list
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout the default branch
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
-      - name: Create dist folder
-        run: mkdir -p ruleset
-
-      - name: Obtain Files
+      - name: Download, merge, and deduplicate rules
+        shell: bash
         run: |
-          curl -LR -o ruleset/lo_reject.txt "https://raw.githubusercontent.com/Loyalsoldier/surge-rules/release/reject.txt"
-          curl -LR -o ruleset/bl_adlite.txt "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/AdvertisingLite/AdvertisingLite_Domain.list"
-          curl -LR -o ruleset/bl_privacy.txt "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Privacy/Privacy_Domain.list"
+          set -euo pipefail
 
-      - name: Remove Comments
+          work_dir="$(mktemp -d)"
+          trap 'rm -rf "$work_dir"' EXIT
+
+          urls=(
+            "https://raw.githubusercontent.com/Repcz/Tool/X/Surge/Rules/Reject.list"
+            "https://raw.githubusercontent.com/TG-Twilight/AWAvenue-Ads-Rule/main/Filters/AWAvenue-Ads-Rule-Surge-RULE-SET.list"
+            "https://raw.githubusercontent.com/iab0x00/ProxyRules/main/Rule/Block.txt"
+          )
+
+          for index in "${!urls[@]}"; do
+            curl \
+              --fail \
+              --silent \
+              --show-error \
+              --location \
+              --retry 3 \
+              --retry-delay 2 \
+              --retry-all-errors \
+              --output "$work_dir/source-$index.list" \
+              "${urls[$index]}"
+
+            if [[ ! -s "$work_dir/source-$index.list" ]]; then
+              echo "::error::Downloaded source $((index + 1)) is empty."
+              exit 1
+            fi
+          done
+
+          # 去掉 BOM、CR、Surge 支持的三种注释和空行，再按首次出现的顺序去重。
+          awk '
+            FNR == 1 { sub(/^\xef\xbb\xbf/, "") }
+            { sub(/\r$/, "") }
+            /^[[:space:]]*(#|;|\/\/)/ || /^[[:space:]]*$/ { next }
+            {
+              # 行尾注释符前必须有空格，因此不会误删 https:// 等规则内容。
+              sub(/[[:space:]]+(#|;|\/\/).*$/, "")
+              sub(/^[[:space:]]+/, "")
+              sub(/[[:space:]]+$/, "")
+              if ($0 != "" && !seen[$0]++) {
+                print
+              }
+            }
+          ' "$work_dir"/source-*.list > "$RUNNER_TEMP/reject.list"
+
+          if [[ ! -s "$RUNNER_TEMP/reject.list" ]]; then
+            echo "::error::The merged reject.list is empty."
+            exit 1
+          fi
+
+          # 三个上游文件都应当是 Surge RULE-SET；阻止错误页面或异常内容被发布。
+          if invalid_line="$(grep -m 1 -Ev '^[A-Z][A-Z0-9-]*,.+$' "$RUNNER_TEMP/reject.list")"; then
+            echo "::error::Invalid Surge rule found: $invalid_line"
+            exit 1
+          fi
+
+          echo "Merged $(wc -l < "$RUNNER_TEMP/reject.list") unique rules."
+
+      - name: Publish only reject.list to release branch
+        shell: bash
         run: |
-          sed '/^#/d' ruleset/bl_adlite.txt > ruleset/bl_adlite_mid1.txt
-          sed '/^#/d' ruleset/bl_privacy.txt > ruleset/bl_privacy_mid1.txt
+          set -euo pipefail
 
-      - name: Generate Files
-        run: |
-          cat ruleset/bl_adlite_mid1.txt ruleset/lo_reject.txt ruleset/bl_privacy_mid1.txt | sort | uniq > ruleset/AD_Domain.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Remove Useless Files
-        run: |
-          rm ruleset/bl_*
-          rm ruleset/lo_*
+          # 孤儿分支没有主分支的提交历史或文件，只加入生成文件。
+          git switch --orphan release-build
+          cp "$RUNNER_TEMP/reject.list" reject.list
+          git add reject.list
 
-      - name: Push artifacts to release branch
-        run: |
-          git config --local user.email "28685148+likecreep@users.noreply.github.com"
-          git config --local user.name "github-action[bot]"
-          git fetch
-          git checkout -b release
-          git checkout --orphan release-orphan
-          git add -A
-          git commit -am "Updated at $(date)"
-          git branch -D release
-          git branch -m release
+          if [[ "$(git ls-files)" != "reject.list" ]]; then
+            echo "::error::The release commit must contain only reject.list."
+            exit 1
+          fi
 
-      - name: GitHub Push
-        uses: ad-m/github-push-action@v0.6.0
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: release
-          force: true
+          git commit -m "Update reject.list"
+          git push --force origin HEAD:release
