@@ -74,6 +74,59 @@ jobs:
             }
           ' "$work_dir"/source-*.list > "$RUNNER_TEMP/reject.list"
 
+          # 如果 DOMAIN 中的 IP 已有对应单主机 IP-CIDR 规则，则删除冗余的 DOMAIN 规则。
+          # 没有对应 IP-CIDR 规则时保留原规则，以免丢失有效匹配。
+          python3 - "$RUNNER_TEMP/reject.list" <<'PY'
+          import ipaddress
+          import pathlib
+          import sys
+
+          output_path = pathlib.Path(sys.argv[1])
+          rules = output_path.read_text(encoding="utf-8").splitlines()
+
+          single_ip_rules = set()
+          for rule in rules:
+              parts = [part.strip() for part in rule.split(",")]
+              if len(parts) < 2 or parts[0] not in {"IP-CIDR", "IP-CIDR6"}:
+                  continue
+
+              try:
+                  network = ipaddress.ip_network(parts[1], strict=False)
+              except ValueError:
+                  continue
+
+              expected_version = 4 if parts[0] == "IP-CIDR" else 6
+              if (
+                  network.version == expected_version
+                  and network.prefixlen == network.max_prefixlen
+              ):
+                  single_ip_rules.add(network.network_address)
+
+          filtered_rules = []
+          removed_rules = []
+          for rule in rules:
+              parts = [part.strip() for part in rule.split(",", 2)]
+              if len(parts) >= 2 and parts[0] == "DOMAIN":
+                  try:
+                      domain_ip = ipaddress.ip_address(parts[1])
+                  except ValueError:
+                      domain_ip = None
+
+                  if domain_ip is not None and domain_ip in single_ip_rules:
+                      removed_rules.append(rule)
+                      continue
+
+              filtered_rules.append(rule)
+
+          output_path.write_text(
+              "\n".join(filtered_rules) + "\n",
+              encoding="utf-8",
+          )
+
+          for rule in removed_rules:
+              print(f"Removed redundant DOMAIN rule: {rule}")
+          PY
+
           if [[ ! -s "$RUNNER_TEMP/reject.list" ]]; then
             echo "::error::The merged reject.list is empty."
             exit 1
